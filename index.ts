@@ -68,9 +68,8 @@ function getRepoRoot(dir: string): string | null {
 
 function cloneRepo(source: string, target: string): void {
   try {
-    const result = spawnSync("git", ["clone", source, target], {
-      stdio: "inherit",
-    });
+    writeLog(`cloning ${source} -> ${target}`)
+    const result = spawnSync("git", ["clone", source, target]);
     if (result.status !== 0) {
       throw new Error(`git clone failed with exit code ${result.status}`);
     }
@@ -84,6 +83,7 @@ function cloneRepo(source: string, target: string): void {
 
 function getLimaName(dir: string): string | null {
   try {
+    writeLog(`get lima name for ${openpodRoot} ${dir}`)
     const rel = path.relative(openpodRoot, dir);
     if (rel.startsWith("..") || path.isAbsolute(rel)) {
       return null;
@@ -156,6 +156,8 @@ export default Plugin.define({
       );
     }
 
+    writeLog("registering prompt")
+
     await ctx.session.hook("prompt", async (event) => {
       const session = await ctx.session.get({ sessionID: event.sessionID });
       const dir = session.location.directory;
@@ -220,7 +222,7 @@ export default Plugin.define({
             "--yes",
           ],
           {
-            stdio: "inherit",
+            stdio: "ignore",
           },
         );
         if (createResult.status !== 0) {
@@ -230,15 +232,18 @@ export default Plugin.define({
 
       writeLog(`starting lima instance ${limaName}`);
       const startResult = spawnSync("limactl", ["start", limaName, "--yes"], {
-        stdio: "inherit",
+        stdio: "ignore",
       });
       if (startResult.status !== 0) {
         writeLog(`limactl start exited with ${startResult.status}`);
       }
     });
 
+    writeLog("registering create.before")
+
     await ctx.shell.hook("create.before", async (event) => {
       const limaName = getLimaName(event.cwd);
+
       if (limaName) {
         const originalCommand = event.command;
         const escapedCwd = event.cwd.replace(/'/g, "'\\''");
