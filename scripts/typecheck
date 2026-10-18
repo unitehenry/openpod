@@ -14,4 +14,5 @@ npx --yes --package @typescript/native-preview tsgo --noEmit \
   --lib esnext \
   --esModuleInterop \
   --forceConsistentCasingInFileNames \
+  --types node \
   index.ts
