@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "Error: node is not installed" >&2
+  exit 1
+fi
+
+node_version=$(node -v)
+if [[ ! "$node_version" =~ ^v24\. ]]; then
+  echo "Error: Node.js version 24 is required (found $node_version)" >&2
+  exit 1
+fi
+
+exec "$(command -v node)" "$@"
