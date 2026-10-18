@@ -22,5 +22,11 @@ export default Plugin.define({
         "`limactl` is not installed. Lima is required for openpod. See https://lima-vm.io/",
       )
     }
+
+    await ctx.session.hook("prompt", async (event) => {
+      const messages = await ctx.session.context({ sessionID: event.sessionID })
+      const isNew = messages.length === 0
+      console.log(`[openpod] session ${event.sessionID} prompt - isNew: ${isNew}`)
+    })
   },
 })
