@@ -32,7 +32,7 @@ function isGitEnabled(dir: string): boolean {
   }
 }
 
-function getRepoRoot(dir: string): string {
+function getRepoRoot(dir: string): string | null {
   try {
     const result = spawnSync(
       "git",
@@ -92,7 +92,7 @@ export default Plugin.define({
         `[openpod] needs move for project dir ${dir}? ${needsMove} (target=${target})`,
       );
 
-      if (!gitEnabeld) {
+      if (!gitEnabled) {
         console.log(`[openpod] git is not enabled`);
         return;
       }
