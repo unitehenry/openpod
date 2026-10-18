@@ -82,6 +82,71 @@ function cloneRepo(source: string, target: string): void {
   }
 }
 
+function getLimaName(dir: string): string | null {
+  try {
+    const rel = path.relative(openpodRoot, dir);
+    if (rel.startsWith("..") || path.isAbsolute(rel)) {
+      return null;
+    }
+    const first = rel.split(path.sep).find((p) => p.length > 0);
+    return first || null;
+  } catch {
+    return null;
+  }
+}
+
+function limaInstanceExists(name: string): boolean {
+  try {
+    const result = spawnSync("limactl", ["list", name], {
+      stdio: "ignore",
+    });
+    return result.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+function cleanupOpenpod(sessionID: string): void {
+  if (!sessionID || typeof sessionID !== "string") return;
+
+  const limaName = sessionID;
+  const podDir = path.join(openpodRoot, sessionID);
+
+  writeLog(`[cleanup] starting for ${sessionID}`);
+
+  // best-effort stop (ignore errors)
+  try {
+    spawnSync("limactl", ["stop", limaName, "--force"], { stdio: "ignore" });
+    writeLog(`[cleanup] stopped ${limaName} (if running)`);
+  } catch {
+    // ignore
+  }
+
+  // delete the lima instance
+  try {
+    const result = spawnSync("limactl", ["delete", limaName, "--force"], {
+      stdio: "ignore",
+    });
+    writeLog(
+      `[cleanup] limactl delete ${limaName} exited with ${result.status}`,
+    );
+  } catch (err) {
+    writeLog(`[cleanup] limactl delete error for ${limaName}: ${err}`);
+  }
+
+  // remove the openpod directory
+  try {
+    if (fs.existsSync(podDir)) {
+      fs.rmSync(podDir, { recursive: true, force: true });
+      writeLog(`[cleanup] removed directory ${podDir}`);
+    } else {
+      writeLog(`[cleanup] directory did not exist: ${podDir}`);
+    }
+  } catch (err) {
+    writeLog(`[cleanup] failed to remove ${podDir}: ${err}`);
+  }
+}
+
 export default Plugin.define({
   id: "openpod",
   async setup(ctx) {
@@ -95,12 +160,11 @@ export default Plugin.define({
       const session = await ctx.session.get({ sessionID: event.sessionID });
       const dir = session.location.directory;
       const gitEnabled = isGitEnabled(dir);
-      writeLog(
-        `session ${event.sessionID} prompt - gitEnabled: ${gitEnabled}`,
-      );
+      writeLog(`session ${event.sessionID} prompt - gitEnabled: ${gitEnabled}`);
 
       const target = path.join(openpodRoot, event.sessionID);
       const needsMove = dir !== target;
+
       writeLog(
         `needs move for project dir ${dir}? ${needsMove} (target=${target})`,
       );
@@ -110,34 +174,109 @@ export default Plugin.define({
         return;
       }
 
-      if (!needsMove) {
+      const limaName = event.sessionID;
+      const podDir = target;
+
+      if (needsMove) {
+        if (fs.existsSync(target)) {
+          writeLog(`${target} already exists`);
+          await ctx.session.move({
+            sessionID: event.sessionID,
+            directory: target,
+          });
+        } else {
+          const repoRoot = getRepoRoot(dir);
+
+          if (!repoRoot) {
+            writeLog(`failed to get repo root`);
+            return;
+          }
+
+          writeLog(`cloning ${repoRoot} -> ${target}`);
+          fs.mkdirSync(openpodRoot, { recursive: true });
+
+          cloneRepo(repoRoot, target);
+
+          writeLog(`clone complete, moving session to ${target}`);
+          await ctx.session.move({
+            sessionID: event.sessionID,
+            directory: target,
+          });
+        }
+      } else {
         writeLog(`already in ${target} directory`);
-        return;
       }
 
-      if (fs.existsSync(target)) {
-        writeLog(`${target} already exists`);
-        await ctx.session.move({
-          sessionID: event.sessionID,
-          directory: target,
-        });
-        return;
+      // ensure lima instance for this pod
+      if (!limaInstanceExists(limaName)) {
+        writeLog(`creating lima instance ${limaName} (mount-only ${podDir}:w)`);
+        const createResult = spawnSync(
+          "limactl",
+          [
+            "create",
+            `--name=${limaName}`,
+            `--mount-only=${podDir}:w`,
+            "template:default",
+            "--yes",
+          ],
+          {
+            stdio: "inherit",
+          },
+        );
+        if (createResult.status !== 0) {
+          writeLog(`limactl create exited with ${createResult.status}`);
+        }
       }
 
-      const repoRoot = getRepoRoot(dir);
-
-      if (!repoRoot) {
-        writeLog(`failed to get repo root`);
-        return;
+      writeLog(`starting lima instance ${limaName}`);
+      const startResult = spawnSync("limactl", ["start", limaName, "--yes"], {
+        stdio: "inherit",
+      });
+      if (startResult.status !== 0) {
+        writeLog(`limactl start exited with ${startResult.status}`);
       }
-
-      writeLog(`cloning ${repoRoot} -> ${target}`);
-      fs.mkdirSync(openpodRoot, { recursive: true });
-
-      cloneRepo(repoRoot, target);
-
-      writeLog(`clone complete, moving session to ${target}`);
-      await ctx.session.move({ sessionID: event.sessionID, directory: target });
     });
+
+    await ctx.shell.hook("create.before", async (event) => {
+      const limaName = getLimaName(event.cwd);
+      if (limaName) {
+        const originalCommand = event.command;
+        const escapedCwd = event.cwd.replace(/'/g, "'\\''");
+        const escapedCmd = originalCommand.replace(/'/g, "'\\''");
+        event.command = `limactl shell --preserve-env --workdir='${escapedCwd}' ${limaName} bash -c '${escapedCmd}'`;
+        writeLog(
+          `redirected shell command for lima ${limaName} (cwd=${event.cwd})`,
+        );
+      }
+    });
+
+    // Listen for session removal (via events, since there is no ctx.session.hook("remove"))
+    // and clean up the corresponding openpod directory + lima instance.
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        for await (const ev of ctx.event.subscribe({
+          signal: controller.signal,
+        })) {
+          if (ev.type === "session.deleted") {
+            const props: any = (ev as any).properties ?? ev;
+            const sessionID: string | undefined =
+              props.sessionID ??
+              props.id ??
+              props.info?.id ??
+              (ev as any).sessionID;
+            if (sessionID) {
+              cleanupOpenpod(sessionID);
+            }
+          }
+        }
+      } catch (err: any) {
+        if (err?.name !== "AbortError") {
+          writeLog(`event subscription error: ${err}`);
+        }
+      }
+    })();
+
+    return () => controller.abort();
   },
 });
