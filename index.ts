@@ -106,6 +106,47 @@ function limaInstanceExists(name: string): boolean {
   }
 }
 
+function cleanupOpenpod(sessionID: string): void {
+  if (!sessionID || typeof sessionID !== "string") return;
+
+  const limaName = sessionID;
+  const podDir = path.join(openpodRoot, sessionID);
+
+  writeLog(`[cleanup] starting for ${sessionID}`);
+
+  // best-effort stop (ignore errors)
+  try {
+    spawnSync("limactl", ["stop", limaName, "--force"], { stdio: "ignore" });
+    writeLog(`[cleanup] stopped ${limaName} (if running)`);
+  } catch {
+    // ignore
+  }
+
+  // delete the lima instance
+  try {
+    const result = spawnSync("limactl", ["delete", limaName, "--force"], {
+      stdio: "ignore",
+    });
+    writeLog(
+      `[cleanup] limactl delete ${limaName} exited with ${result.status}`,
+    );
+  } catch (err) {
+    writeLog(`[cleanup] limactl delete error for ${limaName}: ${err}`);
+  }
+
+  // remove the openpod directory
+  try {
+    if (fs.existsSync(podDir)) {
+      fs.rmSync(podDir, { recursive: true, force: true });
+      writeLog(`[cleanup] removed directory ${podDir}`);
+    } else {
+      writeLog(`[cleanup] directory did not exist: ${podDir}`);
+    }
+  } catch (err) {
+    writeLog(`[cleanup] failed to remove ${podDir}: ${err}`);
+  }
+}
+
 export default Plugin.define({
   id: "openpod",
   async setup(ctx) {
@@ -208,5 +249,34 @@ export default Plugin.define({
         );
       }
     });
+
+    // Listen for session removal (via events, since there is no ctx.session.hook("remove"))
+    // and clean up the corresponding openpod directory + lima instance.
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        for await (const ev of ctx.event.subscribe({
+          signal: controller.signal,
+        })) {
+          if (ev.type === "session.deleted") {
+            const props: any = (ev as any).properties ?? ev;
+            const sessionID: string | undefined =
+              props.sessionID ??
+              props.id ??
+              props.info?.id ??
+              (ev as any).sessionID;
+            if (sessionID) {
+              cleanupOpenpod(sessionID);
+            }
+          }
+        }
+      } catch (err: any) {
+        if (err?.name !== "AbortError") {
+          writeLog(`event subscription error: ${err}`);
+        }
+      }
+    })();
+
+    return () => controller.abort();
   },
 });
