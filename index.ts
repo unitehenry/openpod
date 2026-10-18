@@ -12,7 +12,7 @@ function writeLog(message: string): void {
   try {
     fs.mkdirSync(logDir, { recursive: true });
     const timestamp = new Date().toISOString();
-    fs.appendFileSync(logFile, `[${timestamp}] ${message}\n`);
+    fs.appendFileSync(logFile, `[${timestamp}] [openpod] ${message}\n`);
   } catch {
     // ignore logging failures
   }
@@ -61,7 +61,7 @@ function getRepoRoot(dir: string): string | null {
     }
     return result.stdout.trim();
   } catch (err) {
-    writeLog(`[openpod] failed to determine git root for ${dir}: ${err}`);
+    writeLog(`failed to determine git root for ${dir}: ${err}`);
     return null;
   }
 }
@@ -75,7 +75,7 @@ function cloneRepo(source: string, target: string): void {
       throw new Error(`git clone failed with exit code ${result.status}`);
     }
   } catch (err) {
-    writeLog(`[openpod] ${err}`);
+    writeLog(`${err}`);
     try {
       fs.rmSync(target, { recursive: true, force: true });
     } catch {}
@@ -96,27 +96,27 @@ export default Plugin.define({
       const dir = session.location.directory;
       const gitEnabled = isGitEnabled(dir);
       writeLog(
-        `[openpod] session ${event.sessionID} prompt - gitEnabled: ${gitEnabled}`,
+        `session ${event.sessionID} prompt - gitEnabled: ${gitEnabled}`,
       );
 
       const target = path.join(openpodRoot, event.sessionID);
       const needsMove = dir !== target;
       writeLog(
-        `[openpod] needs move for project dir ${dir}? ${needsMove} (target=${target})`,
+        `needs move for project dir ${dir}? ${needsMove} (target=${target})`,
       );
 
       if (!gitEnabled) {
-        writeLog(`[openpod] git is not enabled`);
+        writeLog(`git is not enabled`);
         return;
       }
 
       if (!needsMove) {
-        writeLog(`[openpod] already in ${target} directory`);
+        writeLog(`already in ${target} directory`);
         return;
       }
 
       if (fs.existsSync(target)) {
-        writeLog(`[openpod] ${target} already exists`);
+        writeLog(`${target} already exists`);
         await ctx.session.move({
           sessionID: event.sessionID,
           directory: target,
@@ -127,16 +127,16 @@ export default Plugin.define({
       const repoRoot = getRepoRoot(dir);
 
       if (!repoRoot) {
-        writeLog(`[opencode] failed to get repo root`);
+        writeLog(`failed to get repo root`);
         return;
       }
 
-      writeLog(`[openpod] cloning ${repoRoot} -> ${target}`);
+      writeLog(`cloning ${repoRoot} -> ${target}`);
       fs.mkdirSync(openpodRoot, { recursive: true });
 
       cloneRepo(repoRoot, target);
 
-      writeLog(`[openpod] clone complete, moving session to ${target}`);
+      writeLog(`clone complete, moving session to ${target}`);
       await ctx.session.move({ sessionID: event.sessionID, directory: target });
     });
   },
