@@ -27,6 +27,16 @@ export default Plugin.define({
       const messages = await ctx.session.context({ sessionID: event.sessionID })
       const isNew = messages.length === 0
       console.log(`[openpod] session ${event.sessionID} prompt - isNew: ${isNew}`)
+
+      const session = await ctx.session.get({ sessionID: event.sessionID })
+      const dir = session.location.directory
+      const vcs = await ctx.vcs.get({ location: { directory: dir } })
+      const vcsEnabled = !!vcs.data.provider
+      console.log(`[openpod] vcs enabled for project dir ${dir}? ${vcsEnabled} (provider=${vcs.data.provider ?? "none"})`)
+
+      // TODO: if new, and vcsEnabled
+        // git clone to `~/.local/share/openpod/<sessionId>`
+        // move session to clone repo
     })
   },
 })
