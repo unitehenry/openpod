@@ -47,7 +47,31 @@ export async function registerPrompt(
   function cloneRepo(source: string, target: string): void {
     try {
       writeLog(`cloning ${source} -> ${target}`);
-      const result = spawnSync("git", ["clone", source, target]);
+
+      let args = [source, target];
+
+      // If the source repo advertises a default branch via origin/HEAD,
+      // clone that specific branch so the resulting checkout matches the
+      // "official" default branch rather than whatever happens to be checked
+      // out in the source.
+      const headRef = spawnSync(
+        "git",
+        ["-C", source, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
+      );
+
+      if (headRef.status === 0 && headRef.stdout) {
+        const ref = headRef.stdout.trim(); // e.g. refs/remotes/origin/main
+        const branch = ref.replace(/^refs\/remotes\/origin\//, "");
+        if (branch) {
+          writeLog(`cloning default branch ${branch} (from origin/HEAD)`);
+          args = ["--branch", branch, source, target];
+        }
+      } else {
+        writeLog("no origin/HEAD ref found, cloning source as-is");
+      }
+
+      const result = spawnSync("git", ["clone", ...args]);
       if (result.status !== 0) {
         throw new Error(`git clone failed with exit code ${result.status}`);
       }
@@ -79,11 +103,12 @@ export async function registerPrompt(
         return;
       }
 
-      const lines = listResult.stdout.trim().split("\n");
+      const lines = listResult.stdout.trim().split("
+");
       const remotes: Record<string, { fetch?: string; push?: string }> = {};
 
       for (const line of lines) {
-        const match = line.match(/^(\S+)\s+(\S+)\s+\((fetch|push)\)$/);
+        const match = line.match(/^(S+)s+(S+)s+((fetch|push))$/);
         if (match) {
           const [, name, url, type] = match;
           if (!remotes[name]) {
