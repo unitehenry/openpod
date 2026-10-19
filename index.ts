@@ -5,6 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 import { registerPrompt } from "./prompt";
+import { registerShell } from "./shell";
 
 const openpodRoot = path.join(os.homedir(), ".local", "share", "openpod");
 const logDir = path.join(openpodRoot, ".log");
@@ -34,20 +35,6 @@ function isCommandAvailable(command: string): boolean {
     return true;
   } catch {
     return false;
-  }
-}
-
-function getLimaName(dir: string): string | null {
-  try {
-    writeLog(`get lima name for ${openpodRoot} ${dir}`);
-    const rel = path.relative(openpodRoot, dir);
-    if (rel.startsWith("..") || path.isAbsolute(rel)) {
-      return null;
-    }
-    const first = rel.split(path.sep).find((p) => p.length > 0);
-    return first || null;
-  } catch {
-    return null;
   }
 }
 
@@ -128,22 +115,7 @@ export default Plugin.define({
     }
 
     await registerPrompt(ctx, { writeLog, openpodRoot });
-
-    writeLog("registering create.before");
-
-    await ctx.shell.hook("create.before", async (event) => {
-      const limaName = getLimaName(event.cwd);
-
-      if (limaName) {
-        const originalCommand = event.command;
-        const escapedCwd = event.cwd.replace(/'/g, "'\''");
-        const escapedCmd = originalCommand.replace(/'/g, "'\''");
-        event.command = `limactl shell --preserve-env --workdir='${escapedCwd}' ${limaName} bash -c '${escapedCmd}'`;
-        writeLog(
-          `redirected shell command for lima ${limaName} (cwd=${event.cwd})`,
-        );
-      }
-    });
+    await registerShell(ctx, { writeLog, openpodRoot });
 
     writeLog("registering commands");
 
