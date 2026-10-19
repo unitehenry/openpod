@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Verify lint
+        run: |
+          bash ./scripts/lint
+          git diff --exit-code --quiet || {
+            echo '::error::Lint issues were auto-fixed. Run `./scripts/lint` locally and commit the changes.'
+            exit 1
+          }
+
+      - name: Verify typecheck
+        run: bash ./scripts/typecheck
+
+      - name: Verify format
+        run: |
+          bash ./scripts/format
+          git diff --exit-code --quiet || {
+            echo '::error::Formatting issues found. Run `./scripts/format` locally and commit the changes.'
+            exit 1
+          }
