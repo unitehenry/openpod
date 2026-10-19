@@ -3,9 +3,11 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+import type { OpenpodContext } from "./setup";
+
 export async function cleanupOpenpod(
   sessionID: string,
-  deps: { writeLog: (message: string) => void; openpodRoot: string },
+  deps: OpenpodContext,
 ): Promise<void> {
   const { writeLog, openpodRoot } = deps;
   if (!sessionID || typeof sessionID !== "string") return;
@@ -49,7 +51,7 @@ export async function cleanupOpenpod(
 }
 
 export async function clearAllOpenpod(
-  deps: { writeLog: (message: string) => void; openpodRoot: string },
+  deps: OpenpodContext,
 ): Promise<void> {
   const { writeLog, openpodRoot } = deps;
   writeLog("[clear] starting full openpod cleanup");
@@ -79,7 +81,7 @@ export async function clearAllOpenpod(
 
 export async function registerCommand(
   ctx: Plugin.Context,
-  deps: { writeLog: (message: string) => void; openpodRoot: string },
+  deps: OpenpodContext,
 ): Promise<void> {
   writeLog("registering commands");
 
