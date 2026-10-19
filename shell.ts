@@ -30,8 +30,8 @@ export async function registerShell(
 
     if (limaName) {
       const originalCommand = event.command;
-      const escapedCwd = event.cwd.replace(/'/g, "'\''");
-      const escapedCmd = originalCommand.replace(/'/g, "'\''");
+      const escapedCwd = event.cwd.replace(/'/g, "'\\''");
+      const escapedCmd = originalCommand.replace(/'/g, "'\\''");
       event.command = `limactl shell --preserve-env --workdir='${escapedCwd}' ${limaName} bash -c '${escapedCmd}'`;
       writeLog(
         `redirected shell command for lima ${limaName} (cwd=${event.cwd})`,

@@ -15,17 +15,20 @@ export async function registerController(
         signal: controller.signal,
       })) {
         if (ev.type === "session.deleted") {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const props: any = (ev as any).properties ?? ev;
           const sessionID: string | undefined =
             props.sessionID ??
             props.id ??
             props.info?.id ??
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (ev as any).sessionID;
           if (sessionID) {
             void deps.cleanupOpenpod(sessionID);
           }
         }
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       if (err?.name !== "AbortError") {
         deps.writeLog(`event subscription error: ${err}`);
