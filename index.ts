@@ -12,7 +12,8 @@ function writeLog(message: string): void {
   try {
     fs.mkdirSync(logDir, { recursive: true });
     const timestamp = new Date().toISOString();
-    fs.appendFileSync(logFile, `[${timestamp}] [openpod] ${message}\n`);
+    fs.appendFileSync(logFile, `[${timestamp}] [openpod] ${message}
+`);
   } catch {
     // ignore logging failures
   }
@@ -105,11 +106,12 @@ function copyRemotes(source: string, target: string): void {
       return;
     }
 
-    const lines = listResult.stdout.trim().split("\n");
+    const lines = listResult.stdout.trim().split("
+");
     const remotes: Record<string, { fetch?: string; push?: string }> = {};
 
     for (const line of lines) {
-      const match = line.match(/^(\S+)\s+(\S+)\s+\((fetch|push)\)$/);
+      const match = line.match(/^(S+)s+(S+)s+((fetch|push))$/);
       if (match) {
         const [, name, url, type] = match;
         if (!remotes[name]) {
@@ -174,7 +176,7 @@ function limaInstanceExists(name: string): boolean {
   }
 }
 
-function cleanupOpenpod(sessionID: string): void {
+async function cleanupOpenpod(sessionID: string): Promise<void> {
   if (!sessionID || typeof sessionID !== "string") return;
 
   const limaName = sessionID;
@@ -215,7 +217,7 @@ function cleanupOpenpod(sessionID: string): void {
   }
 }
 
-function clearAllOpenpod(): void {
+async function clearAllOpenpod(): Promise<void> {
   writeLog("[clear] starting full openpod cleanup");
 
   try {
@@ -229,7 +231,7 @@ function clearAllOpenpod(): void {
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const sessionID = entry.name;
-        cleanupOpenpod(sessionID);
+        await cleanupOpenpod(sessionID);
       }
     }
 
@@ -340,8 +342,8 @@ export default Plugin.define({
 
       if (limaName) {
         const originalCommand = event.command;
-        const escapedCwd = event.cwd.replace(/'/g, "'\\''");
-        const escapedCmd = originalCommand.replace(/'/g, "'\\''");
+        const escapedCwd = event.cwd.replace(/'/g, "'\''");
+        const escapedCmd = originalCommand.replace(/'/g, "'\''");
         event.command = `limactl shell --preserve-env --workdir='${escapedCwd}' ${limaName} bash -c '${escapedCmd}'`;
         writeLog(
           `redirected shell command for lima ${limaName} (cwd=${event.cwd})`,
@@ -355,8 +357,9 @@ export default Plugin.define({
       editor.add({
         name: "clear-openpod",
         description: "Stop and delete all openpod Lima instances and remove the entire ~/.local/share/openpod directory",
-        execute: async () => {
-          clearAllOpenpod();
+        execute: async ({ sessionID }) => {
+          await clearAllOpenpod();
+          await ctx.session.remove({ sessionID });
         },
       });
     });
@@ -377,7 +380,7 @@ export default Plugin.define({
               props.info?.id ??
               (ev as any).sessionID;
             if (sessionID) {
-              cleanupOpenpod(sessionID);
+              void cleanupOpenpod(sessionID);
             }
           }
         }
