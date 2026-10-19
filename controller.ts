@@ -22,7 +22,7 @@ export async function registerController(
             props.info?.id ??
             (ev as any).sessionID;
           if (sessionID) {
-            void deps.cleanupOpenpod?.(sessionID);
+            void deps.cleanupOpenpod(sessionID);
           }
         }
       }
