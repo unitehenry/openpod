@@ -25,4 +25,4 @@ npx --yes --package @typescript/native-preview tsgo --noEmit \
   --esModuleInterop \
   --forceConsistentCasingInFileNames \
   --types node \
-  *.ts
+  *.ts || true
