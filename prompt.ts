@@ -129,7 +129,9 @@ export async function registerPrompt(
       writeLog(`${err}`);
       try {
         fs.rmSync(target, { recursive: true, force: true });
-      } catch {}
+      } catch {
+        // ignore cleanup failure
+      }
     }
   }
 
@@ -153,7 +155,7 @@ export async function registerPrompt(
       }
 
       const lines = listResult.stdout.trim().split("\n");
-      const remotes: Record<string, { fetch?: string; push?: string }> = {};
+      const remotes = {};
 
       for (const line of lines) {
         const match = line.match(/^(\S+)\s+(\S+)\s+\((fetch|push)\)$/);

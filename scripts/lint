@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Ensure Node.js v24 is available
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$script_dir/node" --version >/dev/null
+
+project_dir="$(pwd)"
+config_file="$project_dir/eslint.config.temp.mjs"
+
+# Ensure we have a package.json (it is already gitignored)
+if [ ! -f package.json ]; then
+  npm init -y >/dev/null 2>&1
+fi
+
+# Lightweight local install of eslint + TypeScript support
+# (node_modules and package.json are gitignored)
+npm install --no-save --save-dev eslint @eslint/js typescript-eslint >/dev/null 2>&1
+
+# Generate temporary config at the project root (gitignored)
+cat > "$config_file" << 'CFG'
+import js from "@eslint/js";
+import tseslint from "typescript-eslint";
+
+export default tseslint.config(
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }
+      ],
+      "no-undef": "off",
+    },
+  },
+  {
+    ignores: ["node_modules/**", "dist/**", ".git/**"],
+  }
+);
+CFG
+
+# Run eslint using the generated config (capture exit code for cleanup)
+set +e
+npx eslint \
+  --config "$config_file" \
+  --fix \
+  .
+eslint_exit=$?
+set -e
+
+# Always remove the temporary config file
+rm -f "$config_file"
+
+exit $eslint_exit

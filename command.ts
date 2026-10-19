@@ -1,6 +1,5 @@
 import type { Plugin } from "@opencode/plugin";
 import * as fs from "node:fs";
-import * as path from "node:path";
 
 import type { OpenpodContext } from "./setup";
 
