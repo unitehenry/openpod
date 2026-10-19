@@ -5,6 +5,16 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$script_dir/node" --version >/dev/null
 
+project_dir="$(pwd)"
+
+# Ensure we have a package.json (it is already gitignored)
+if [ ! -f package.json ]; then
+  npm init -y >/dev/null 2>&1
+fi
+
+# Lightweight install of node types for tsgo (gitignored)
+npm install --no-save --save-dev @types/node >/dev/null 2>&1
+
 npx --yes --package @typescript/native-preview tsgo --noEmit \
   --skipLibCheck \
   --strict \
