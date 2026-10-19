@@ -71,7 +71,7 @@ export async function registerPrompt(
           // Example output:
           // ref: refs/heads/main	HEAD
           // <sha>	HEAD
-          const match = symrefResult.stdout.match(/ref: refs/heads/(S+)/);
+          const match = symrefResult.stdout.match(/ref: refs\/heads\/(\S+)/);
           if (match) {
             const branch = match[1];
             writeLog(`cloning latest default branch ${branch} from remote`);
@@ -105,7 +105,7 @@ export async function registerPrompt(
 
       if (headRef.status === 0 && headRef.stdout) {
         const ref = headRef.stdout.trim();
-        const branch = ref.replace(/^refs/remotes/origin//, "");
+        const branch = ref.replace(/^refs\/remotes\/origin\//, "");
         if (branch) {
           writeLog(`cloning default branch ${branch} (from local origin/HEAD)`);
           args = ["--branch", branch, source, target];
@@ -146,12 +146,11 @@ export async function registerPrompt(
         return;
       }
 
-      const lines = listResult.stdout.trim().split("
-");
+      const lines = listResult.stdout.trim().split("\n");
       const remotes: Record<string, { fetch?: string; push?: string }> = {};
 
       for (const line of lines) {
-        const match = line.match(/^(S+)s+(S+)s+((fetch|push))$/);
+        const match = line.match(/^(\S+)\s+(\S+)\s+\((fetch|push)\)$/);
         if (match) {
           const [, name, url, type] = match;
           if (!remotes[name]) {
