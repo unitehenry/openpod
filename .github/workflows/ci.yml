@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Lint
+        run: bash scripts/lint
+
+      # scripts/lint auto-fixes. Fail if the pull request was not already clean.
+      - name: Verify lint made no changes
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::Lint changed files. Run bash scripts/lint and commit the result."
+            exit 1
+          fi
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install
+        run: ./scripts/install
+
+      - name: Typecheck
+        run: ./scripts/typecheck
+
+  format:
+    name: format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Format
+        run: ./scripts/format
+
+      # scripts/format rewrites files. Fail if the pull request was not already clean.
+      - name: Verify format made no changes
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::Format changed files. Run ./scripts/format and commit the result."
+            exit 1
+          fi
