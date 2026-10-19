@@ -34,7 +34,10 @@ export async function registerSetup(): Promise<OpenpodContext> {
       if (process.platform === "win32") {
         execSync(`where ${command}`, { stdio: "ignore" });
       } else {
-        execSync(`command -v ${command}`, { stdio: "ignore", shell: "/bin/sh" });
+        execSync(`command -v ${command}`, {
+          stdio: "ignore",
+          shell: "/bin/sh",
+        });
       }
       return true;
     } catch {
