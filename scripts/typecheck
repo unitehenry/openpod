@@ -15,4 +15,4 @@ npx --yes --package @typescript/native-preview tsgo --noEmit \
   --esModuleInterop \
   --forceConsistentCasingInFileNames \
   --types node \
-  plugin.ts
+  index.ts
