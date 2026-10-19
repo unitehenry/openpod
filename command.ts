@@ -7,7 +7,7 @@ import type { OpenpodContext } from "./setup";
 
 export async function cleanupOpenpod(
   sessionID: string,
-  deps: OpenpodContext,
+  deps: { writeLog: (message: string, level?: string) => void; openpodRoot: string },
 ): Promise<void> {
   const { writeLog, openpodRoot } = deps;
   if (!sessionID || typeof sessionID !== "string") return;
@@ -67,7 +67,7 @@ export async function clearAllOpenpod(
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const sessionID = entry.name;
-        await cleanupOpenpod(sessionID, deps);
+        await deps.cleanupOpenpod?.(sessionID);
       }
     }
 

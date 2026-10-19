@@ -25,6 +25,7 @@ function writeLog(message: string, level: string = "info"): void {
 export type OpenpodContext = {
   writeLog: (message: string, level?: string) => void;
   openpodRoot: string;
+  cleanupOpenpod?: (sessionID: string) => Promise<void>;
 };
 
 function isCommandAvailable(command: string): boolean {
