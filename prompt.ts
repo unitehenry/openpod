@@ -1,9 +1,10 @@
+import type { Plugin } from "@opencode/plugin";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
 export async function registerPrompt(
-  ctx: any,
+  ctx: Plugin.Context,
   deps: { writeLog: (message: string) => void; openpodRoot: string },
 ): Promise<void> {
   const { writeLog, openpodRoot } = deps;
