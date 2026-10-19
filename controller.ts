@@ -28,7 +28,7 @@ export async function registerController(
           }
         }
       }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       if (err?.name !== "AbortError") {
         deps.writeLog(`event subscription error: ${err}`);
