@@ -1,13 +1,13 @@
 import type { Plugin } from "@opencode/plugin";
 import { cleanupOpenpod, registerCommand } from "./command";
 
+import type { OpenpodContext } from "./setup";
+
 export async function registerController(
   ctx: Plugin.Context,
-  deps: { writeLog: (message: string) => void; openpodRoot: string },
+  deps: OpenpodContext,
 ): Promise<() => void> {
-  const { writeLog, openpodRoot } = deps;
-
-  await registerCommand(ctx, { writeLog, openpodRoot });
+  await registerCommand(ctx, deps);
 
   // Listen for session removal (via events, since there is no ctx.session.hook("remove"))
   // and clean up the corresponding openpod directory + lima instance.
@@ -25,13 +25,13 @@ export async function registerController(
             props.info?.id ??
             (ev as any).sessionID;
           if (sessionID) {
-            void cleanupOpenpod(sessionID, { writeLog, openpodRoot });
+            void cleanupOpenpod(sessionID, deps);
           }
         }
       }
     } catch (err: any) {
       if (err?.name !== "AbortError") {
-        writeLog(`event subscription error: ${err}`);
+        deps.writeLog(`event subscription error: ${err}`);
       }
     }
   })();

@@ -3,9 +3,11 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+import type { OpenpodContext } from "./setup";
+
 export async function registerPrompt(
   ctx: Plugin.Context,
-  deps: { writeLog: (message: string) => void; openpodRoot: string },
+  deps: OpenpodContext,
 ): Promise<void> {
   const { writeLog, openpodRoot } = deps;
 

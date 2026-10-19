@@ -1,9 +1,11 @@
 import type { Plugin } from "@opencode/plugin";
 import * as path from "node:path";
 
+import type { OpenpodContext } from "./setup";
+
 export async function registerShell(
   ctx: Plugin.Context,
-  deps: { writeLog: (message: string) => void; openpodRoot: string },
+  deps: OpenpodContext,
 ): Promise<void> {
   const { writeLog, openpodRoot } = deps;
 
