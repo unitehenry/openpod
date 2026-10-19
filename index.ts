@@ -73,11 +73,79 @@ function cloneRepo(source: string, target: string): void {
     if (result.status !== 0) {
       throw new Error(`git clone failed with exit code ${result.status}`);
     }
+    copyRemotes(source, target);
   } catch (err) {
     writeLog(`${err}`);
     try {
       fs.rmSync(target, { recursive: true, force: true });
     } catch {}
+  }
+}
+
+function copyRemotes(source: string, target: string): void {
+  try {
+    writeLog(`copying remotes from ${source} to ${target}`);
+
+    // clone always sets "origin" to point at the local source path;
+    // remove it so we can restore the original remotes (if any)
+    spawnSync("git", ["-C", target, "remote", "remove", "origin"], {
+      stdio: "ignore",
+    });
+
+    const listResult = spawnSync(
+      "git",
+      ["-C", source, "remote", "-v"],
+      {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    );
+    if (listResult.status !== 0 || !listResult.stdout?.trim()) {
+      writeLog("no remotes found in source (origin removed from clone)");
+      return;
+    }
+
+    const lines = listResult.stdout.trim().split("\n");
+    const remotes: Record<string, { fetch?: string; push?: string }> = {};
+
+    for (const line of lines) {
+      const match = line.match(/^(\S+)\s+(\S+)\s+\((fetch|push)\)$/);
+      if (match) {
+        const [, name, url, type] = match;
+        if (!remotes[name]) {
+          remotes[name] = {};
+        }
+        if (type === "fetch") {
+          remotes[name].fetch = url;
+        } else {
+          remotes[name].push = url;
+        }
+      }
+    }
+
+    for (const [name, urls] of Object.entries(remotes)) {
+      if (urls.fetch) {
+        const addRes = spawnSync(
+          "git",
+          ["-C", target, "remote", "add", name, urls.fetch],
+          { stdio: "ignore" },
+        );
+        if (addRes.status !== 0) {
+          writeLog(`failed to add remote ${name} ${urls.fetch}`);
+        }
+      }
+      if (urls.push && urls.push !== urls.fetch) {
+        spawnSync(
+          "git",
+          ["-C", target, "remote", "set-url", "--push", name, urls.push],
+          { stdio: "ignore" },
+        );
+      }
+    }
+
+    writeLog(`copied ${Object.keys(remotes).length} remotes`);
+  } catch (err) {
+    writeLog(`copy remotes error: ${err}`);
   }
 }
 

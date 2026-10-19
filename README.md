@@ -11,6 +11,8 @@ prompt
 check if session is new
 if in git repo
 git clone to `~/.local/share/openpod/<sessionId>`
+copy over remotes (origin, upstream, etc.) from original project
+  (plain `git clone` of local dir only sets a local-path origin)
 move session to clone repo
 else
 skip
