@@ -15,12 +15,13 @@ fi
 
 # Lightweight local install of eslint + TypeScript support
 # (node_modules and package.json are gitignored)
-npm install --no-save --save-dev eslint @eslint/js typescript-eslint >/dev/null 2>&1
+npm install --no-save --save-dev eslint @eslint/js typescript-eslint eslint-config-prettier >/dev/null 2>&1
 
 # Generate temporary config at the project root (gitignored)
 cat > "$config_file" << 'CFG'
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
+import eslintConfigPrettier from "eslint-config-prettier";
 
 export default tseslint.config(
   js.configs.recommended,
@@ -36,6 +37,7 @@ export default tseslint.config(
       "no-undef": "off",
     },
   },
+  eslintConfigPrettier,
   {
     ignores: ["node_modules/**", "dist/**", ".git/**"],
   }
