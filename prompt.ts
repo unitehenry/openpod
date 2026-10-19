@@ -54,7 +54,7 @@ export async function registerPrompt(
       const remoteResult = spawnSync(
         "git",
         ["-C", source, "remote", "get-url", "origin"],
-        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
+        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
       );
 
       if (remoteResult.status === 0 && remoteResult.stdout.trim()) {
@@ -64,7 +64,7 @@ export async function registerPrompt(
         const symrefResult = spawnSync(
           "git",
           ["-C", source, "ls-remote", "--symref", remoteUrl, "HEAD"],
-          { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
+          { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
         );
 
         let cloneArgs = [remoteUrl, target];
@@ -79,7 +79,9 @@ export async function registerPrompt(
             writeLog(`cloning latest default branch ${branch} from remote`);
             cloneArgs = ["--branch", branch, remoteUrl, target];
           } else {
-            writeLog(`cloning from remote ${remoteUrl} (using remote default branch)`);
+            writeLog(
+              `cloning from remote ${remoteUrl} (using remote default branch)`,
+            );
           }
         } else {
           writeLog(`cloning from remote ${remoteUrl} (default branch)`);
@@ -95,14 +97,16 @@ export async function registerPrompt(
 
       // Fallback: no "origin" remote, clone from local source and try to
       // respect its origin/HEAD if present.
-      writeLog("no origin remote configured, falling back to local source clone");
+      writeLog(
+        "no origin remote configured, falling back to local source clone",
+      );
 
       let args = [source, target];
 
       const headRef = spawnSync(
         "git",
         ["-C", source, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"],
-        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
+        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
       );
 
       if (headRef.status === 0 && headRef.stdout) {
