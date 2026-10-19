@@ -79,12 +79,11 @@ export async function registerPrompt(
         return;
       }
 
-      const lines = listResult.stdout.trim().split("
-");
+      const lines = listResult.stdout.trim().split("\n");
       const remotes: Record<string, { fetch?: string; push?: string }> = {};
 
       for (const line of lines) {
-        const match = line.match(/^(S+)s+(S+)s+((fetch|push))$/);
+        const match = line.match(/^(\S+)\s+(\S+)\s+\((fetch|push)\)$/);
         if (match) {
           const [, name, url, type] = match;
           if (!remotes[name]) {
