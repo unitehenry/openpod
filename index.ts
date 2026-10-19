@@ -12,8 +12,11 @@ function writeLog(message: string): void {
   try {
     fs.mkdirSync(logDir, { recursive: true });
     const timestamp = new Date().toISOString();
-    fs.appendFileSync(logFile, `[${timestamp}] [openpod] ${message}
-`);
+    fs.appendFileSync(
+      logFile,
+      `[${timestamp}] [openpod] ${message}
+`,
+    );
   } catch {
     // ignore logging failures
   }
@@ -69,7 +72,7 @@ function getRepoRoot(dir: string): string | null {
 
 function cloneRepo(source: string, target: string): void {
   try {
-    writeLog(`cloning ${source} -> ${target}`)
+    writeLog(`cloning ${source} -> ${target}`);
     const result = spawnSync("git", ["clone", source, target]);
     if (result.status !== 0) {
       throw new Error(`git clone failed with exit code ${result.status}`);
@@ -93,25 +96,20 @@ function copyRemotes(source: string, target: string): void {
       stdio: "ignore",
     });
 
-    const listResult = spawnSync(
-      "git",
-      ["-C", source, "remote", "-v"],
-      {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-      },
-    );
+    const listResult = spawnSync("git", ["-C", source, "remote", "-v"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
     if (listResult.status !== 0 || !listResult.stdout?.trim()) {
       writeLog("no remotes found in source (origin removed from clone)");
       return;
     }
 
-    const lines = listResult.stdout.trim().split("
-");
+    const lines = listResult.stdout.trim().split("\n");
     const remotes: Record<string, { fetch?: string; push?: string }> = {};
 
     for (const line of lines) {
-      const match = line.match(/^(S+)s+(S+)s+((fetch|push))$/);
+      const match = line.match(/^(\S+)\s+(\S+)\s+\((fetch|push)\)$/);
       if (match) {
         const [, name, url, type] = match;
         if (!remotes[name]) {
@@ -153,7 +151,7 @@ function copyRemotes(source: string, target: string): void {
 
 function getLimaName(dir: string): string | null {
   try {
-    writeLog(`get lima name for ${openpodRoot} ${dir}`)
+    writeLog(`get lima name for ${openpodRoot} ${dir}`);
     const rel = path.relative(openpodRoot, dir);
     if (rel.startsWith("..") || path.isAbsolute(rel)) {
       return null;
@@ -252,7 +250,7 @@ export default Plugin.define({
       );
     }
 
-    writeLog("registering prompt")
+    writeLog("registering prompt");
 
     await ctx.session.hook("prompt", async (event) => {
       const session = await ctx.session.get({ sessionID: event.sessionID });
@@ -335,7 +333,7 @@ export default Plugin.define({
       }
     });
 
-    writeLog("registering create.before")
+    writeLog("registering create.before");
 
     await ctx.shell.hook("create.before", async (event) => {
       const limaName = getLimaName(event.cwd);
@@ -356,7 +354,8 @@ export default Plugin.define({
     await ctx.command.transform((editor) => {
       editor.add({
         name: "clear-openpod",
-        description: "Stop and delete all openpod Lima instances and remove the entire ~/.local/share/openpod directory",
+        description:
+          "Stop and delete all openpod Lima instances and remove the entire ~/.local/share/openpod directory",
         execute: async ({ sessionID }) => {
           await clearAllOpenpod();
           await ctx.session.remove({ sessionID });
