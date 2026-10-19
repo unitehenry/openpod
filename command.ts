@@ -83,6 +83,7 @@ export async function registerCommand(
   ctx: Plugin.Context,
   deps: OpenpodContext,
 ): Promise<void> {
+  const { writeLog } = deps;
   writeLog("registering commands");
 
   await ctx.command.transform((editor) => {
