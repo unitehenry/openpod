@@ -215,6 +215,32 @@ function cleanupOpenpod(sessionID: string): void {
   }
 }
 
+function clearAllOpenpod(): void {
+  writeLog("[clear] starting full openpod cleanup");
+
+  try {
+    if (!fs.existsSync(openpodRoot)) {
+      writeLog("[clear] openpod root does not exist");
+      return;
+    }
+
+    // Clean up each session/pod individually (stops + deletes lima + removes dir)
+    const entries = fs.readdirSync(openpodRoot, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const sessionID = entry.name;
+        cleanupOpenpod(sessionID);
+      }
+    }
+
+    // Remove the root directory entirely (includes .log etc.)
+    fs.rmSync(openpodRoot, { recursive: true, force: true });
+    writeLog(`[clear] removed entire directory ${openpodRoot}`);
+  } catch (err) {
+    writeLog(`[clear] error during cleanup: ${err}`);
+  }
+}
+
 export default Plugin.define({
   id: "openpod",
   async setup(ctx) {
@@ -321,6 +347,18 @@ export default Plugin.define({
           `redirected shell command for lima ${limaName} (cwd=${event.cwd})`,
         );
       }
+    });
+
+    writeLog("registering commands");
+
+    await ctx.command.transform((editor) => {
+      editor.add({
+        name: "clear-openpod",
+        description: "Stop and delete all openpod Lima instances and remove the entire ~/.local/share/openpod directory",
+        execute: async () => {
+          clearAllOpenpod();
+        },
+      });
     });
 
     // Listen for session removal (via events, since there is no ctx.session.hook("remove"))
