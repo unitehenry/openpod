@@ -48,12 +48,55 @@ export async function registerPrompt(
     try {
       writeLog(`cloning ${source} -> ${target}`);
 
+      // Try to clone from the real remote (to get the latest default branch)
+      const remoteResult = spawnSync(
+        "git",
+        ["-C", source, "remote", "get-url", "origin"],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
+      );
+
+      if (remoteResult.status === 0 && remoteResult.stdout.trim()) {
+        const remoteUrl = remoteResult.stdout.trim();
+
+        // Query the remote directly for its current default branch (latest)
+        const symrefResult = spawnSync(
+          "git",
+          ["-C", source, "ls-remote", "--symref", remoteUrl, "HEAD"],
+          { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
+        );
+
+        let cloneArgs = [remoteUrl, target];
+
+        if (symrefResult.status === 0 && symrefResult.stdout) {
+          // Example output:
+          // ref: refs/heads/main	HEAD
+          // <sha>	HEAD
+          const match = symrefResult.stdout.match(/ref: refs/heads/(S+)/);
+          if (match) {
+            const branch = match[1];
+            writeLog(`cloning latest default branch ${branch} from remote`);
+            cloneArgs = ["--branch", branch, remoteUrl, target];
+          } else {
+            writeLog(`cloning from remote ${remoteUrl} (using remote default branch)`);
+          }
+        } else {
+          writeLog(`cloning from remote ${remoteUrl} (default branch)`);
+        }
+
+        const result = spawnSync("git", ["clone", ...cloneArgs]);
+        if (result.status !== 0) {
+          throw new Error(`git clone failed with exit code ${result.status}`);
+        }
+        copyRemotes(source, target);
+        return;
+      }
+
+      // Fallback: no "origin" remote, clone from local source and try to
+      // respect its origin/HEAD if present.
+      writeLog("no origin remote configured, falling back to local source clone");
+
       let args = [source, target];
 
-      // If the source repo advertises a default branch via origin/HEAD,
-      // clone that specific branch so the resulting checkout matches the
-      // "official" default branch rather than whatever happens to be checked
-      // out in the source.
       const headRef = spawnSync(
         "git",
         ["-C", source, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"],
@@ -61,10 +104,10 @@ export async function registerPrompt(
       );
 
       if (headRef.status === 0 && headRef.stdout) {
-        const ref = headRef.stdout.trim(); // e.g. refs/remotes/origin/main
-        const branch = ref.replace(/^refs\/remotes\/origin\//, "");
+        const ref = headRef.stdout.trim();
+        const branch = ref.replace(/^refs/remotes/origin//, "");
         if (branch) {
-          writeLog(`cloning default branch ${branch} (from origin/HEAD)`);
+          writeLog(`cloning default branch ${branch} (from local origin/HEAD)`);
           args = ["--branch", branch, source, target];
         }
       } else {
