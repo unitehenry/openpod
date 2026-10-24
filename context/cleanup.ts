@@ -8,10 +8,7 @@ export type Cleanup = {
   execute: (sessionID: string) => Promise<void>;
 };
 
-export function initCleanup(
-  openpodRoot: string,
-  logger: Logger,
-): Cleanup {
+export function initCleanup(openpodRoot: string, logger: Logger): Cleanup {
   async function execute(sessionID: string): Promise<void> {
     if (!sessionID || typeof sessionID !== "string") return;
 

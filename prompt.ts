@@ -113,7 +113,9 @@ export async function registerPrompt(
         const ref = headRef.stdout.trim();
         const branch = ref.replace(/^refs\/remotes\/origin\//, "");
         if (branch) {
-          logger.log(`cloning default branch ${branch} (from local origin/HEAD)`);
+          logger.log(
+            `cloning default branch ${branch} (from local origin/HEAD)`,
+          );
           args = ["--branch", branch, source, target];
         }
       } else {
