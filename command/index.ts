@@ -4,6 +4,8 @@ import type { OpenpodContext } from "../context";
 
 import { clear } from "./clear";
 
+const COMMAND_NAME = "clear-openpod";
+
 export async function registerCommand(
   ctx: Plugin.Context,
   deps: OpenpodContext,
@@ -13,7 +15,7 @@ export async function registerCommand(
 
   await ctx.command.transform((editor) => {
     editor.add({
-      name: "clear-openpod",
+      name: COMMAND_NAME,
       description:
         "Stop and delete all openpod Lima instances and remove the entire ~/.local/share/openpod directory",
       execute: async ({ sessionID }) => {
