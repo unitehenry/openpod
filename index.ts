@@ -4,12 +4,12 @@ import { registerCommand } from "./command";
 import { registerPrompt } from "./prompt";
 import { registerShell } from "./shell";
 import { registerController } from "./controller";
-import { registerSetup } from "./setup";
+import { init } from "./context";
 
 export default Plugin.define({
   id: "openpod",
   async setup(ctx) {
-    const openpod = await registerSetup();
+    const openpod = await init();
 
     await registerPrompt(ctx, openpod);
     await registerShell(ctx, openpod);

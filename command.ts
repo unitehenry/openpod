@@ -1,15 +1,15 @@
 import type { Plugin } from "@opencode/plugin";
 import * as fs from "node:fs";
 
-import type { OpenpodContext } from "./setup";
+import type { OpenpodContext } from "./context";
 
 export async function clearAllOpenpod(deps: OpenpodContext): Promise<void> {
-  const { writeLog, openpodRoot } = deps;
-  writeLog("[clear] starting full openpod cleanup");
+  const { log, openpodRoot } = deps;
+  log("[clear] starting full openpod cleanup");
 
   try {
     if (!fs.existsSync(openpodRoot)) {
-      writeLog("[clear] openpod root does not exist");
+      log("[clear] openpod root does not exist");
       return;
     }
 
@@ -18,15 +18,15 @@ export async function clearAllOpenpod(deps: OpenpodContext): Promise<void> {
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const sessionID = entry.name;
-        await deps.cleanupOpenpod(sessionID);
+        await deps.cleanup(sessionID);
       }
     }
 
     // Remove the root directory entirely (includes .log etc.)
     fs.rmSync(openpodRoot, { recursive: true, force: true });
-    writeLog(`[clear] removed entire directory ${openpodRoot}`);
+    log(`[clear] removed entire directory ${openpodRoot}`);
   } catch (err) {
-    writeLog(`[clear] error during cleanup: ${err}`);
+    log(`[clear] error during cleanup: ${err}`);
   }
 }
 
@@ -34,8 +34,8 @@ export async function registerCommand(
   ctx: Plugin.Context,
   deps: OpenpodContext,
 ): Promise<void> {
-  const { writeLog } = deps;
-  writeLog("registering commands");
+  const { log } = deps;
+  log("registering commands");
 
   await ctx.command.transform((editor) => {
     editor.add({

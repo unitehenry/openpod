@@ -1,17 +1,17 @@
 import type { Plugin } from "@opencode/plugin";
 import * as path from "node:path";
 
-import type { OpenpodContext } from "./setup";
+import type { OpenpodContext } from "./context";
 
 export async function registerShell(
   ctx: Plugin.Context,
   deps: OpenpodContext,
 ): Promise<void> {
-  const { writeLog, openpodRoot } = deps;
+  const { log, openpodRoot } = deps;
 
   function getLimaName(dir: string): string | null {
     try {
-      writeLog(`get lima name for ${openpodRoot} ${dir}`);
+      log(`get lima name for ${openpodRoot} ${dir}`);
       const rel = path.relative(openpodRoot, dir);
       if (rel.startsWith("..") || path.isAbsolute(rel)) {
         return null;
@@ -23,7 +23,7 @@ export async function registerShell(
     }
   }
 
-  writeLog("registering create.before");
+  log("registering create.before");
 
   await ctx.shell.hook("create.before", async (event) => {
     const limaName = getLimaName(event.cwd);
@@ -33,7 +33,7 @@ export async function registerShell(
       const escapedCwd = event.cwd.replace(/'/g, "'\\''");
       const escapedCmd = originalCommand.replace(/'/g, "'\\''");
       event.command = `limactl shell --preserve-env --workdir='${escapedCwd}' ${limaName} bash -c '${escapedCmd}'`;
-      writeLog(
+      log(
         `redirected shell command for lima ${limaName} (cwd=${event.cwd})`,
       );
     }
