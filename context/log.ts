@@ -1,7 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-export function createLog(openpodRoot: string) {
+export type Logger = (message: string, level?: string) => void;
+
+export function initLog(openpodRoot: string): Logger {
   const logDir = path.join(openpodRoot, ".log");
   const logFile = path.join(logDir, "openpod.log");
 

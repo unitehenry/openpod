@@ -2,11 +2,13 @@ import * as fs from "node:fs";
 import { spawnSync } from "node:child_process";
 import * as path from "node:path";
 
+import type { Logger } from "./log";
+
 export type Cleanup = (sessionID: string) => Promise<void>;
 
 export function createCleanup(
   openpodRoot: string,
-  log: (message: string, level?: string) => void,
+  log: Logger,
 ): Cleanup {
   return async function cleanup(sessionID: string): Promise<void> {
     if (!sessionID || typeof sessionID !== "string") return;
