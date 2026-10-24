@@ -24,7 +24,7 @@ export async function registerController(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (ev as any).sessionID;
           if (sessionID) {
-            void deps.cleanup(sessionID);
+            void deps.cleanup.execute(sessionID);
           }
         }
       }

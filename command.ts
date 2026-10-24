@@ -18,7 +18,7 @@ export async function clearAllOpenpod(deps: OpenpodContext): Promise<void> {
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const sessionID = entry.name;
-        await deps.cleanup(sessionID);
+        await deps.cleanup.execute(sessionID);
       }
     }
 

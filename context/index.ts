@@ -3,19 +3,19 @@ import * as path from "node:path";
 
 import { initLogger, type Logger } from "./log";
 import { isCommandAvailable } from "./command";
-import { createCleanup } from "./cleanup";
+import { initCleanup, type Cleanup } from "./cleanup";
 
 export type OpenpodContext = {
   logger: Logger;
   openpodRoot: string;
-  cleanup: (sessionID: string) => Promise<void>;
+  cleanup: Cleanup;
 };
 
 export async function init(): Promise<OpenpodContext> {
   const openpodRoot = path.join(os.homedir(), ".local", "share", "openpod");
 
   const logger = initLogger(openpodRoot);
-  const cleanup = createCleanup(openpodRoot, logger);
+  const cleanup = initCleanup(openpodRoot, logger);
 
   if (!isCommandAvailable("limactl")) {
     logger.log(
