@@ -2,7 +2,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { execSync } from "node:child_process";
 
-import { initLogger, type Logger } from "./log";
+import { initLogger, type Logger } from "./logger";
 import { initCleanup, type Cleanup } from "./cleanup";
 
 export type OpenpodContext = {
