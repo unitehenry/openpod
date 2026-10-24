@@ -1,9 +1,0 @@
-- [REFACTOR] setup.ts -> /context
-  - log.ts - writeLog() -> log()
-  - command.ts - isCommandAvailable()
-  - cleanup.ts - cleanupOpenpod() -> cleanup
-  - index.ts registerSetup() -> init()
-- [REFACTOR] OpenpodContext
-  - writeLog -> log
-  - openpodRoot
-  - cleanupOpenpod -> cleaup
