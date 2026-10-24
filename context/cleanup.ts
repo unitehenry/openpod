@@ -16,12 +16,12 @@ export function createCleanup(
     const limaName = sessionID;
     const podDir = path.join(openpodRoot, sessionID);
 
-    logger(`[cleanup] starting for ${sessionID}`);
+    logger.log(`[cleanup] starting for ${sessionID}`);
 
     // best-effort stop (ignore errors)
     try {
       spawnSync("limactl", ["stop", limaName, "--force"], { stdio: "ignore" });
-      logger(`[cleanup] stopped ${limaName} (if running)`);
+      logger.log(`[cleanup] stopped ${limaName} (if running)`);
     } catch {
       // ignore
     }
@@ -31,23 +31,23 @@ export function createCleanup(
       const result = spawnSync("limactl", ["delete", limaName, "--force"], {
         stdio: "ignore",
       });
-      logger(
+      logger.log(
         `[cleanup] limactl delete ${limaName} exited with ${result.status}`,
       );
     } catch (err) {
-      logger(`[cleanup] limactl delete error for ${limaName}: ${err}`);
+      logger.log(`[cleanup] limactl delete error for ${limaName}: ${err}`);
     }
 
     // remove the openpod directory
     try {
       if (fs.existsSync(podDir)) {
         fs.rmSync(podDir, { recursive: true, force: true });
-        logger(`[cleanup] removed directory ${podDir}`);
+        logger.log(`[cleanup] removed directory ${podDir}`);
       } else {
-        logger(`[cleanup] directory did not exist: ${podDir}`);
+        logger.log(`[cleanup] directory did not exist: ${podDir}`);
       }
     } catch (err) {
-      logger(`[cleanup] failed to remove ${podDir}: ${err}`);
+      logger.log(`[cleanup] failed to remove ${podDir}: ${err}`);
     }
   };
 }
