@@ -8,7 +8,7 @@ export type Cleanup = (sessionID: string) => Promise<void>;
 
 export function createCleanup(
   openpodRoot: string,
-  log: Logger,
+  logger: Logger,
 ): Cleanup {
   return async function cleanup(sessionID: string): Promise<void> {
     if (!sessionID || typeof sessionID !== "string") return;
@@ -16,12 +16,12 @@ export function createCleanup(
     const limaName = sessionID;
     const podDir = path.join(openpodRoot, sessionID);
 
-    log(`[cleanup] starting for ${sessionID}`);
+    logger(`[cleanup] starting for ${sessionID}`);
 
     // best-effort stop (ignore errors)
     try {
       spawnSync("limactl", ["stop", limaName, "--force"], { stdio: "ignore" });
-      log(`[cleanup] stopped ${limaName} (if running)`);
+      logger(`[cleanup] stopped ${limaName} (if running)`);
     } catch {
       // ignore
     }
@@ -31,23 +31,23 @@ export function createCleanup(
       const result = spawnSync("limactl", ["delete", limaName, "--force"], {
         stdio: "ignore",
       });
-      log(
+      logger(
         `[cleanup] limactl delete ${limaName} exited with ${result.status}`,
       );
     } catch (err) {
-      log(`[cleanup] limactl delete error for ${limaName}: ${err}`);
+      logger(`[cleanup] limactl delete error for ${limaName}: ${err}`);
     }
 
     // remove the openpod directory
     try {
       if (fs.existsSync(podDir)) {
         fs.rmSync(podDir, { recursive: true, force: true });
-        log(`[cleanup] removed directory ${podDir}`);
+        logger(`[cleanup] removed directory ${podDir}`);
       } else {
-        log(`[cleanup] directory did not exist: ${podDir}`);
+        logger(`[cleanup] directory did not exist: ${podDir}`);
       }
     } catch (err) {
-      log(`[cleanup] failed to remove ${podDir}: ${err}`);
+      logger(`[cleanup] failed to remove ${podDir}: ${err}`);
     }
   };
 }

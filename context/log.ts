@@ -3,7 +3,7 @@ import * as path from "node:path";
 
 export type Logger = (message: string, level?: string) => void;
 
-export function initLog(openpodRoot: string): Logger {
+export function initLogger(openpodRoot: string): Logger {
   const logDir = path.join(openpodRoot, ".log");
   const logFile = path.join(logDir, "openpod.log");
 

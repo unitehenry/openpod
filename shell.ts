@@ -7,11 +7,11 @@ export async function registerShell(
   ctx: Plugin.Context,
   deps: OpenpodContext,
 ): Promise<void> {
-  const { log, openpodRoot } = deps;
+  const { logger, openpodRoot } = deps;
 
   function getLimaName(dir: string): string | null {
     try {
-      log(`get lima name for ${openpodRoot} ${dir}`);
+      logger(`get lima name for ${openpodRoot} ${dir}`);
       const rel = path.relative(openpodRoot, dir);
       if (rel.startsWith("..") || path.isAbsolute(rel)) {
         return null;
@@ -23,7 +23,7 @@ export async function registerShell(
     }
   }
 
-  log("registering create.before");
+  logger("registering create.before");
 
   await ctx.shell.hook("create.before", async (event) => {
     const limaName = getLimaName(event.cwd);
@@ -33,7 +33,7 @@ export async function registerShell(
       const escapedCwd = event.cwd.replace(/'/g, "'\\''");
       const escapedCmd = originalCommand.replace(/'/g, "'\\''");
       event.command = `limactl shell --preserve-env --workdir='${escapedCwd}' ${limaName} bash -c '${escapedCmd}'`;
-      log(
+      logger(
         `redirected shell command for lima ${limaName} (cwd=${event.cwd})`,
       );
     }
