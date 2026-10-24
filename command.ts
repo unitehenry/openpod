@@ -4,12 +4,12 @@ import * as fs from "node:fs";
 import type { OpenpodContext } from "./context";
 
 export async function clearAllOpenpod(deps: OpenpodContext): Promise<void> {
-  const { log, openpodRoot } = deps;
-  log("[clear] starting full openpod cleanup");
+  const { logger, openpodRoot } = deps;
+  logger("[clear] starting full openpod cleanup");
 
   try {
     if (!fs.existsSync(openpodRoot)) {
-      log("[clear] openpod root does not exist");
+      logger("[clear] openpod root does not exist");
       return;
     }
 
@@ -24,9 +24,9 @@ export async function clearAllOpenpod(deps: OpenpodContext): Promise<void> {
 
     // Remove the root directory entirely (includes .log etc.)
     fs.rmSync(openpodRoot, { recursive: true, force: true });
-    log(`[clear] removed entire directory ${openpodRoot}`);
+    logger(`[clear] removed entire directory ${openpodRoot}`);
   } catch (err) {
-    log(`[clear] error during cleanup: ${err}`);
+    logger(`[clear] error during cleanup: ${err}`);
   }
 }
 
@@ -34,8 +34,8 @@ export async function registerCommand(
   ctx: Plugin.Context,
   deps: OpenpodContext,
 ): Promise<void> {
-  const { log } = deps;
-  log("registering commands");
+  const { logger } = deps;
+  logger("registering commands");
 
   await ctx.command.transform((editor) => {
     editor.add({

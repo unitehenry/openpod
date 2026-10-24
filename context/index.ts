@@ -1,12 +1,12 @@
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { initLog, type Logger } from "./log";
+import { initLogger, type Logger } from "./log";
 import { isCommandAvailable } from "./command";
 import { createCleanup } from "./cleanup";
 
 export type OpenpodContext = {
-  log: Logger;
+  logger: Logger;
   openpodRoot: string;
   cleanup: (sessionID: string) => Promise<void>;
 };
@@ -14,11 +14,11 @@ export type OpenpodContext = {
 export async function init(): Promise<OpenpodContext> {
   const openpodRoot = path.join(os.homedir(), ".local", "share", "openpod");
 
-  const log = initLog(openpodRoot);
-  const cleanup = createCleanup(openpodRoot, log);
+  const logger = initLogger(openpodRoot);
+  const cleanup = createCleanup(openpodRoot, logger);
 
   if (!isCommandAvailable("limactl")) {
-    log(
+    logger(
       "`limactl` is not installed. Lima is required for openpod. See https://lima-vm.io/",
       "error",
     );
@@ -27,5 +27,5 @@ export async function init(): Promise<OpenpodContext> {
     );
   }
 
-  return { log, openpodRoot, cleanup };
+  return { logger, openpodRoot, cleanup };
 }
