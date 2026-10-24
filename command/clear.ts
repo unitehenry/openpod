@@ -1,9 +1,7 @@
-import type { Plugin } from "@opencode/plugin";
+import type { OpenpodContext } from "../context";
 import * as fs from "node:fs";
 
-import type { OpenpodContext } from "./context";
-
-export async function clearAllOpenpod(deps: OpenpodContext): Promise<void> {
+export async function clear(deps: OpenpodContext): Promise<void> {
   const { logger, openpodRoot } = deps;
   logger.log("[clear] starting full openpod cleanup");
 
@@ -28,24 +26,4 @@ export async function clearAllOpenpod(deps: OpenpodContext): Promise<void> {
   } catch (err) {
     logger.log(`[clear] error during cleanup: ${err}`);
   }
-}
-
-export async function registerCommand(
-  ctx: Plugin.Context,
-  deps: OpenpodContext,
-): Promise<void> {
-  const { logger } = deps;
-  logger.log("registering commands");
-
-  await ctx.command.transform((editor) => {
-    editor.add({
-      name: "clear-openpod",
-      description:
-        "Stop and delete all openpod Lima instances and remove the entire ~/.local/share/openpod directory",
-      execute: async ({ sessionID }) => {
-        await clearAllOpenpod(deps);
-        await ctx.session.remove({ sessionID });
-      },
-    });
-  });
 }
