@@ -4,13 +4,15 @@ import * as path from "node:path";
 
 import type { Logger } from "./log";
 
-export type Cleanup = (sessionID: string) => Promise<void>;
+export type Cleanup = {
+  execute: (sessionID: string) => Promise<void>;
+};
 
-export function createCleanup(
+export function initCleanup(
   openpodRoot: string,
   logger: Logger,
 ): Cleanup {
-  return async function cleanup(sessionID: string): Promise<void> {
+  async function execute(sessionID: string): Promise<void> {
     if (!sessionID || typeof sessionID !== "string") return;
 
     const limaName = sessionID;
@@ -49,5 +51,7 @@ export function createCleanup(
     } catch (err) {
       logger.log(`[cleanup] failed to remove ${podDir}: ${err}`);
     }
-  };
+  }
+
+  return { execute };
 }
