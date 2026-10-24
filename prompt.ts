@@ -3,13 +3,13 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import type { OpenpodContext } from "./setup";
+import type { OpenpodContext } from "./context";
 
 export async function registerPrompt(
   ctx: Plugin.Context,
   deps: OpenpodContext,
 ): Promise<void> {
-  const { writeLog, openpodRoot } = deps;
+  const { log, openpodRoot } = deps;
 
   function isGitEnabled(dir: string): boolean {
     try {
@@ -41,14 +41,14 @@ export async function registerPrompt(
       }
       return result.stdout.trim();
     } catch (err) {
-      writeLog(`failed to determine git root for ${dir}: ${err}`);
+      log(`failed to determine git root for ${dir}: ${err}`);
       return null;
     }
   }
 
   function cloneRepo(source: string, target: string): void {
     try {
-      writeLog(`cloning ${source} -> ${target}`);
+      log(`cloning ${source} -> ${target}`);
 
       // Try to clone from the real remote (to get the latest default branch)
       const remoteResult = spawnSync(
@@ -76,15 +76,15 @@ export async function registerPrompt(
           const match = symrefResult.stdout.match(/ref: refs\/heads\/(\S+)/);
           if (match) {
             const branch = match[1];
-            writeLog(`cloning latest default branch ${branch} from remote`);
+            log(`cloning latest default branch ${branch} from remote`);
             cloneArgs = ["--branch", branch, remoteUrl, target];
           } else {
-            writeLog(
+            log(
               `cloning from remote ${remoteUrl} (using remote default branch)`,
             );
           }
         } else {
-          writeLog(`cloning from remote ${remoteUrl} (default branch)`);
+          log(`cloning from remote ${remoteUrl} (default branch)`);
         }
 
         const result = spawnSync("git", ["clone", ...cloneArgs]);
@@ -97,7 +97,7 @@ export async function registerPrompt(
 
       // Fallback: no "origin" remote, clone from local source and try to
       // respect its origin/HEAD if present.
-      writeLog(
+      log(
         "no origin remote configured, falling back to local source clone",
       );
 
@@ -113,11 +113,11 @@ export async function registerPrompt(
         const ref = headRef.stdout.trim();
         const branch = ref.replace(/^refs\/remotes\/origin\//, "");
         if (branch) {
-          writeLog(`cloning default branch ${branch} (from local origin/HEAD)`);
+          log(`cloning default branch ${branch} (from local origin/HEAD)`);
           args = ["--branch", branch, source, target];
         }
       } else {
-        writeLog("no origin/HEAD ref found, cloning source as-is");
+        log("no origin/HEAD ref found, cloning source as-is");
       }
 
       const result = spawnSync("git", ["clone", ...args]);
@@ -126,7 +126,7 @@ export async function registerPrompt(
       }
       copyRemotes(source, target);
     } catch (err) {
-      writeLog(`${err}`);
+      log(`${err}`);
       try {
         fs.rmSync(target, { recursive: true, force: true });
       } catch {
@@ -137,7 +137,7 @@ export async function registerPrompt(
 
   function copyRemotes(source: string, target: string): void {
     try {
-      writeLog(`copying remotes from ${source} to ${target}`);
+      log(`copying remotes from ${source} to ${target}`);
 
       // clone always sets "origin" to point at the local source path;
       // remove it so we can restore the original remotes (if any)
@@ -150,7 +150,7 @@ export async function registerPrompt(
         stdio: ["ignore", "pipe", "ignore"],
       });
       if (listResult.status !== 0 || !listResult.stdout?.trim()) {
-        writeLog("no remotes found in source (origin removed from clone)");
+        log("no remotes found in source (origin removed from clone)");
         return;
       }
 
@@ -180,7 +180,7 @@ export async function registerPrompt(
             { stdio: "ignore" },
           );
           if (addRes.status !== 0) {
-            writeLog(`failed to add remote ${name} ${urls.fetch}`);
+            log(`failed to add remote ${name} ${urls.fetch}`);
           }
         }
         if (urls.push && urls.push !== urls.fetch) {
@@ -192,9 +192,9 @@ export async function registerPrompt(
         }
       }
 
-      writeLog(`copied ${Object.keys(remotes).length} remotes`);
+      log(`copied ${Object.keys(remotes).length} remotes`);
     } catch (err) {
-      writeLog(`copy remotes error: ${err}`);
+      log(`copy remotes error: ${err}`);
     }
   }
 
@@ -209,23 +209,23 @@ export async function registerPrompt(
     }
   }
 
-  writeLog("registering prompt");
+  log("registering prompt");
 
   await ctx.session.hook("prompt", async (event) => {
     const session = await ctx.session.get({ sessionID: event.sessionID });
     const dir = session.location.directory;
     const gitEnabled = isGitEnabled(dir);
-    writeLog(`session ${event.sessionID} prompt - gitEnabled: ${gitEnabled}`);
+    log(`session ${event.sessionID} prompt - gitEnabled: ${gitEnabled}`);
 
     const target = path.join(openpodRoot, event.sessionID);
     const needsMove = dir !== target;
 
-    writeLog(
+    log(
       `needs move for project dir ${dir}? ${needsMove} (target=${target})`,
     );
 
     if (!gitEnabled) {
-      writeLog(`git is not enabled`);
+      log(`git is not enabled`);
       return;
     }
 
@@ -234,7 +234,7 @@ export async function registerPrompt(
 
     if (needsMove) {
       if (fs.existsSync(target)) {
-        writeLog(`${target} already exists`);
+        log(`${target} already exists`);
         await ctx.session.move({
           sessionID: event.sessionID,
           directory: target,
@@ -243,28 +243,28 @@ export async function registerPrompt(
         const repoRoot = getRepoRoot(dir);
 
         if (!repoRoot) {
-          writeLog(`failed to get repo root`);
+          log(`failed to get repo root`);
           return;
         }
 
-        writeLog(`cloning ${repoRoot} -> ${target}`);
+        log(`cloning ${repoRoot} -> ${target}`);
         fs.mkdirSync(openpodRoot, { recursive: true });
 
         cloneRepo(repoRoot, target);
 
-        writeLog(`clone complete, moving session to ${target}`);
+        log(`clone complete, moving session to ${target}`);
         await ctx.session.move({
           sessionID: event.sessionID,
           directory: target,
         });
       }
     } else {
-      writeLog(`already in ${target} directory`);
+      log(`already in ${target} directory`);
     }
 
     // ensure lima instance for this pod
     if (!limaInstanceExists(limaName)) {
-      writeLog(`creating lima instance ${limaName} (mount-only ${podDir}:w)`);
+      log(`creating lima instance ${limaName} (mount-only ${podDir}:w)`);
       const createResult = spawnSync(
         "limactl",
         [
@@ -279,16 +279,16 @@ export async function registerPrompt(
         },
       );
       if (createResult.status !== 0) {
-        writeLog(`limactl create exited with ${createResult.status}`);
+        log(`limactl create exited with ${createResult.status}`);
       }
     }
 
-    writeLog(`starting lima instance ${limaName}`);
+    log(`starting lima instance ${limaName}`);
     const startResult = spawnSync("limactl", ["start", limaName, "--yes"], {
       stdio: "ignore",
     });
     if (startResult.status !== 0) {
-      writeLog(`limactl start exited with ${startResult.status}`);
+      log(`limactl start exited with ${startResult.status}`);
     }
   });
 }

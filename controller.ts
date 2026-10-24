@@ -1,6 +1,6 @@
 import type { Plugin } from "@opencode/plugin";
 
-import type { OpenpodContext } from "./setup";
+import type { OpenpodContext } from "./context";
 
 export async function registerController(
   ctx: Plugin.Context,
@@ -24,14 +24,14 @@ export async function registerController(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (ev as any).sessionID;
           if (sessionID) {
-            void deps.cleanupOpenpod(sessionID);
+            void deps.cleanup(sessionID);
           }
         }
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       if (err?.name !== "AbortError") {
-        deps.writeLog(`event subscription error: ${err}`);
+        deps.log(`event subscription error: ${err}`);
       }
     }
   })();
