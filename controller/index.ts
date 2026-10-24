@@ -1,6 +1,6 @@
 import type { Plugin } from "@opencode/plugin";
 
-import type { OpenpodContext } from "./context";
+import type { OpenpodContext } from "../context";
 
 export async function registerController(
   ctx: Plugin.Context,
