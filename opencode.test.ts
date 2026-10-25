@@ -21,6 +21,26 @@ describe("opencode", () => {
 
   let opencode: Awaited<ReturnType<typeof OpenCode.create>>;
 
+  async function cleanup(sessionId: string, dirs: string[]) {
+    try {
+      execSync(`limactl delete --force ${sessionId}`, { stdio: "ignore" });
+    } catch {
+      // ignore
+    }
+    try {
+      await opencode.sessions.remove({ sessionID: sessionId });
+    } catch {
+      // ignore
+    }
+    for (const d of dirs) {
+      try {
+        fs.rmSync(d, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   beforeEach(async () => {
     opencode = await OpenCode.create();
     await opencode.plugin(openpod);
@@ -77,17 +97,8 @@ describe("opencode", () => {
     const listOutput = execSync("limactl list", { encoding: "utf8" });
     expect(listOutput).not.toContain(session.id);
 
-    // Clean up temp directory
-    try {
-      await opencode.sessions.remove({ sessionID: session.id });
-    } catch {
-      // ignore
-    }
-    try {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    } catch {
-      // ignore cleanup failures
-    }
+    // Clean up
+    await cleanup(session.id, [tempDir]);
   });
 
   it("should not create openpod instance for uninitialized git origin", async () => {
@@ -117,17 +128,8 @@ describe("opencode", () => {
     const listOutput = execSync("limactl list", { encoding: "utf8" });
     expect(listOutput).not.toContain(session.id);
 
-    // Clean up temp directory
-    try {
-      await opencode.sessions.remove({ sessionID: session.id });
-    } catch {
-      // ignore
-    }
-    try {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    } catch {
-      // ignore cleanup failures
-    }
+    // Clean up
+    await cleanup(session.id, [tempDir]);
   });
 
   it(
@@ -168,34 +170,8 @@ describe("opencode", () => {
       const listOutput = execSync("limactl list", { encoding: "utf8" });
       expect(listOutput).toContain(session.id);
 
-      // Clean up: remove lima instance and cloned directory
-      try {
-        execSync(`limactl delete --force ${session.id}`, {
-          stdio: "ignore",
-        });
-      } catch {
-        // ignore cleanup failures
-      }
-      try {
-        await opencode.sessions.remove({ sessionID: session.id });
-      } catch {
-        // ignore
-      }
-      try {
-        fs.rmSync(sessionDir, { recursive: true, force: true });
-      } catch {
-        // ignore
-      }
-      try {
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      } catch {
-        // ignore
-      }
-      try {
-        fs.rmSync(bareDir, { recursive: true, force: true });
-      } catch {
-        // ignore
-      }
+      // Clean up
+      await cleanup(session.id, [sessionDir, tempDir, bareDir]);
     },
   );
 
@@ -246,38 +222,8 @@ describe("opencode", () => {
       // const expectedHost = session.id.replace(/_/g, "-");
       // expect(hostname).toContain(expectedHost);
 
-      // Clean up: remove lima instance and cloned directory
-      try {
-        execSync(`limactl delete --force ${session.id}`, {
-          stdio: "ignore",
-        });
-      } catch {
-        // ignore
-      }
-
-      try {
-        await opencode.sessions.remove({ sessionID: session.id });
-      } catch {
-        // ignore
-      }
-
-      try {
-        fs.rmSync(sessionDir, { recursive: true, force: true });
-      } catch {
-        // ignore
-      }
-
-      //try {
-      //  fs.rmSync(tempDir, { recursive: true, force: true });
-      //} catch {
-      //  // ignore
-      //}
-
-      try {
-        fs.rmSync(bareDir, { recursive: true, force: true });
-      } catch {
-        // ignore
-      }
+      // Clean up
+      await cleanup(session.id, [sessionDir, tempDir, bareDir]);
     },
   );
 });
