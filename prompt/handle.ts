@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-type HandleParams = {
+export type HandleParams = {
   ctx: OpenpodContext;
   sessionId: string;
   dir: string;
@@ -148,5 +148,3 @@ export function handle(params: HandleParams): void {
 
   startLimaInstance(sessionId);
 }
-
-export type { HandleParams };
