@@ -6,4 +6,5 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$script_dir/node" --version >/dev/null
 
 npm install @opencode/plugin
+npm install --save-dev @opencode/sdk
 npm install --save-dev vitest
