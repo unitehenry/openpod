@@ -5,14 +5,23 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$script_dir/node" --version >/dev/null
 
-npx --yes --package @typescript/native-preview tsgo --noEmit \
-  --skipLibCheck \
-  --strict \
-  --target esnext \
-  --module nodenext \
-  --moduleResolution nodenext \
-  --lib esnext \
-  --esModuleInterop \
-  --forceConsistentCasingInFileNames \
-  --types node \
-  *.ts
+# Generate tsconfig.json
+cat >"$script_dir/../tsconfig.json" <<'EOF'
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["esnext"],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"]
+  },
+  "include": ["**/*.ts"]
+}
+EOF
+
+npx --yes --package @typescript/native-preview tsgo
