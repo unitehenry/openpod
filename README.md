@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="logo.svg" alt="OpenPod" width="204" />
+  Give each opencode session an dedicated virtual machine
+</p>
+
 # TODO
 
 - unit test any non-index.ts files
