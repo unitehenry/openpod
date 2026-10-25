@@ -59,6 +59,51 @@ export function handle(params: HandleParams): void {
     }
   }
 
+  function createLimaInstance(limaName: string, podDir: string): void {
+    logger.log(`creating lima instance ${limaName} (mount-only ${podDir}:w)`);
+    const createResult = spawnSync(
+      "limactl",
+      [
+        "create",
+        `--name=${limaName}`,
+        `--mount-only=${podDir}:w`,
+        "template:default",
+        "--yes",
+      ],
+      {
+        stdio: "ignore",
+      },
+    );
+    if (createResult.status !== 0) {
+      logger.log(`limactl create exited with ${createResult.status}`);
+    }
+  }
+
+  function startLimaInstance(limaName: string): void {
+    logger.log(`starting lima instance ${limaName}`);
+    const startResult = spawnSync("limactl", ["start", limaName, "--yes"], {
+      stdio: "ignore",
+    });
+    if (startResult.status !== 0) {
+      logger.log(`limactl start exited with ${startResult.status}`);
+    }
+  }
+
+  function cloneProject(originUrl: string, target: string): boolean {
+    fs.mkdirSync(openpodRoot, { recursive: true });
+    const result = spawnSync("git", ["clone", originUrl, target]);
+    if (result.status !== 0) {
+      logger.log(`git clone failed with exit code ${result.status}`);
+      try {
+        fs.rmSync(target, { recursive: true, force: true });
+      } catch {
+        // ignore cleanup failure
+      }
+      return false;
+    }
+    return true;
+  }
+
   // 1. Check if git is enabled
   const gitEnabled = isGitEnabled(dir);
   logger.log(`session ${sessionId} prompt - gitEnabled: ${gitEnabled}`);
@@ -92,16 +137,7 @@ export function handle(params: HandleParams): void {
 
       // 3. Clone repo from origin to target dir if necessary (no need to clone remotes)
       logger.log(`cloning from origin ${originUrl} -> ${target}`);
-      fs.mkdirSync(openpodRoot, { recursive: true });
-
-      const result = spawnSync("git", ["clone", originUrl, target]);
-      if (result.status !== 0) {
-        logger.log(`git clone failed with exit code ${result.status}`);
-        try {
-          fs.rmSync(target, { recursive: true, force: true });
-        } catch {
-          // ignore cleanup failure
-        }
+      if (!cloneProject(originUrl, target)) {
         return;
       }
 
@@ -114,33 +150,11 @@ export function handle(params: HandleParams): void {
 
   // 5. Create lima instance if necessary
   if (!limaInstanceExists(limaName)) {
-    logger.log(`creating lima instance ${limaName} (mount-only ${podDir}:w)`);
-    const createResult = spawnSync(
-      "limactl",
-      [
-        "create",
-        `--name=${limaName}`,
-        `--mount-only=${podDir}:w`,
-        "template:default",
-        "--yes",
-      ],
-      {
-        stdio: "ignore",
-      },
-    );
-    if (createResult.status !== 0) {
-      logger.log(`limactl create exited with ${createResult.status}`);
-    }
+    createLimaInstance(limaName, podDir);
   }
 
   // 6. Start lima instance
-  logger.log(`starting lima instance ${limaName}`);
-  const startResult = spawnSync("limactl", ["start", limaName, "--yes"], {
-    stdio: "ignore",
-  });
-  if (startResult.status !== 0) {
-    logger.log(`limactl start exited with ${startResult.status}`);
-  }
+  startLimaInstance(limaName);
 }
 
 export type { HandleParams };
