@@ -39,11 +39,9 @@ describe("opencode", () => {
     ).toBe(true);
   });
 
-  it('not create openpod instance for uninitialized git repo', async () => {
+  it("not create openpod instance for uninitialized git repo", async () => {
     // Create a temp directory that is not a git repo
-    const tempDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), "openpod-e2e-"),
-    );
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openpod-e2e-"));
 
     // Register the plugin and create a session, then move it to the non-git directory
     await opencode.plugin(openpod);
