@@ -7,7 +7,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ "$@" == "opencode" ]]; then
   npx vitest run opencode.test.ts
-  return 0
+  exit 0
 fi
 
 npx vitest run --exclude opencode.test.ts "$@"
