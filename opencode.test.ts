@@ -1,4 +1,4 @@
-import { OpenCode } from "@opencode/sdk"
+import { OpenCode } from "@opencode/sdk";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import openpod from "./index";
 
@@ -18,14 +18,19 @@ describe("opencode", () => {
 
     await opencode.sessions.create();
 
-    let commands;
+    let commands: Awaited<ReturnType<typeof opencode.command.list>> | undefined;
 
     for (let i = 0; i < 20; i++) {
       commands = await opencode.command.list();
-      if (commands.data.some((c) => c.name === "clear-openpod")) break;
+      if (
+        commands.data.some((c: { name: string }) => c.name === "clear-openpod")
+      )
+        break;
       await new Promise((r) => setTimeout(r, 50));
     }
 
-    expect(commands.data.some((c) => c.name === "clear-openpod")).toBe(true);
+    expect(
+      commands!.data.some((c: { name: string }) => c.name === "clear-openpod"),
+    ).toBe(true);
   });
 });
