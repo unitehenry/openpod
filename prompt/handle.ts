@@ -104,7 +104,6 @@ export function handle(params: HandleParams): void {
     return true;
   }
 
-  // 1. Check if git is enabled
   const gitEnabled = isGitEnabled(dir);
   logger.log(`session ${sessionId} prompt - gitEnabled: ${gitEnabled}`);
 
@@ -125,14 +124,12 @@ export function handle(params: HandleParams): void {
       logger.log(`${target} already exists`);
       move(sessionId, target);
     } else {
-      // 2. Check if origin remote exists
       const originUrl = getOriginUrl(dir);
       if (!originUrl) {
         logger.log(`no origin remote configured`);
         return;
       }
 
-      // 3. Clone repo from origin to target dir if necessary (no need to clone remotes)
       logger.log(`cloning from origin ${originUrl} -> ${target}`);
       if (!cloneProject(originUrl, target)) {
         return;
@@ -145,12 +142,10 @@ export function handle(params: HandleParams): void {
     logger.log(`already in ${target} directory`);
   }
 
-  // 5. Create lima instance if necessary
   if (!limaInstanceExists(sessionId)) {
     createLimaInstance(sessionId, target);
   }
 
-  // 6. Start lima instance
   startLimaInstance(sessionId);
 }
 
