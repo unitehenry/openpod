@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import { execSync } from "node:child_process";
 import openpod from "./index";
 
 describe("opencode", () => {
@@ -64,6 +65,10 @@ describe("opencode", () => {
     });
 
     expect(fs.existsSync(path.join(openpodRoot, session.id))).toBe(false);
+
+    // Verify no lima instance was created for this session
+    const listOutput = execSync("limactl list", { encoding: "utf8" });
+    expect(listOutput).not.toContain(session.id);
 
     // Clean up temp directory
     try {
