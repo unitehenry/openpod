@@ -9,6 +9,7 @@ import {
 } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
 
 import type { OpenpodContext } from "../context";
 import { init } from "../context";
@@ -17,15 +18,26 @@ import { clear } from "./clear";
 describe("clear", () => {
   let ctx: OpenpodContext;
   let cleanupExecute: ReturnType<typeof vi.fn>;
+  let baseCtx: OpenpodContext;
 
   beforeAll(async () => {
-    ctx = await init();
+    baseCtx = await init();
   });
 
   beforeEach(() => {
-    if (fs.existsSync(ctx.openpodRoot)) {
-      fs.rmSync(ctx.openpodRoot, { recursive: true, force: true });
+    const tempRoot = path.join(
+      os.tmpdir(),
+      `openpod-test-${Date.now()}-${Math.random()}`,
+    );
+    if (fs.existsSync(tempRoot)) {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
     }
+    fs.mkdirSync(tempRoot, { recursive: true });
+
+    ctx = {
+      ...baseCtx,
+      openpodRoot: tempRoot,
+    };
     cleanupExecute = vi.fn();
     ctx.cleanup = { execute: cleanupExecute };
   });
@@ -46,7 +58,7 @@ describe("clear", () => {
 
     await clear(ctx);
 
-    expect(fs.existsSync(ctx.openpodRoot)).toBe(true);
+    expect(fs.existsSync(ctx.openpodRoot)).toBe(false);
     expect(fs.existsSync(path.join(ctx.openpodRoot, "session-abc"))).toBe(
       false,
     );
@@ -66,7 +78,7 @@ describe("clear", () => {
 
     await clear(ctx);
 
-    expect(fs.existsSync(ctx.openpodRoot)).toBe(true);
+    expect(fs.existsSync(ctx.openpodRoot)).toBe(false);
     expect(fs.existsSync(path.join(ctx.openpodRoot, "real-session"))).toBe(
       false,
     );
