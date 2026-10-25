@@ -98,7 +98,7 @@ jobs:
 
       - name: Install limactl
         run: |
-          curl -fsSL "https://github.com/lima-vm/lima/releases/latest/download/lima-$(uname -s)-$(uname -m).tar.gz" | sudo tar Cxzvm /usr/local
+          curl -fsSL $(curl -fsSL https://api.github.com/repos/lima-vm/lima/releases/latest | jq -r '.assets[] | select(.name | endswith("Linux-x86_64.tar.gz")) | .browser_download_url') | sudo tar Cxzvm /usr/local
 
           limactl --version
 
