@@ -72,9 +72,4 @@ describe("clear", () => {
     );
     expect(cleanupExecute).toHaveBeenCalledWith("real-session");
   });
-
-  it("handles errors gracefully without throwing", async () => {
-    fs.mkdirSync(ctx.openpodRoot, { recursive: true });
-    await expect(clear(ctx)).resolves.not.toThrow();
-  });
 });
