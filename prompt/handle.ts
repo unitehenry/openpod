@@ -59,13 +59,13 @@ export function handle(params: HandleParams): void {
     }
   }
 
-  function createLimaInstance(limaName: string, target: string): void {
-    logger.log(`creating lima instance ${limaName} (mount-only ${target}:w)`);
+  function createLimaInstance(sessionId: string, target: string): void {
+    logger.log(`creating lima instance ${sessionId} (mount-only ${target}:w)`);
     const createResult = spawnSync(
       "limactl",
       [
         "create",
-        `--name=${limaName}`,
+        `--name=${sessionId}`,
         `--mount-only=${target}:w`,
         "template:default",
         "--yes",
@@ -79,9 +79,9 @@ export function handle(params: HandleParams): void {
     }
   }
 
-  function startLimaInstance(limaName: string): void {
-    logger.log(`starting lima instance ${limaName}`);
-    const startResult = spawnSync("limactl", ["start", limaName, "--yes"], {
+  function startLimaInstance(sessionId: string): void {
+    logger.log(`starting lima instance ${sessionId}`);
+    const startResult = spawnSync("limactl", ["start", sessionId, "--yes"], {
       stdio: "ignore",
     });
     if (startResult.status !== 0) {
@@ -120,8 +120,6 @@ export function handle(params: HandleParams): void {
     `needs move for project dir ${dir}? ${needsMove} (target=${target})`,
   );
 
-  const limaName = sessionId;
-
   if (needsMove) {
     if (fs.existsSync(target)) {
       logger.log(`${target} already exists`);
@@ -148,12 +146,12 @@ export function handle(params: HandleParams): void {
   }
 
   // 5. Create lima instance if necessary
-  if (!limaInstanceExists(limaName)) {
-    createLimaInstance(limaName, target);
+  if (!limaInstanceExists(sessionId)) {
+    createLimaInstance(sessionId, target);
   }
 
   // 6. Start lima instance
-  startLimaInstance(limaName);
+  startLimaInstance(sessionId);
 }
 
 export type { HandleParams };
