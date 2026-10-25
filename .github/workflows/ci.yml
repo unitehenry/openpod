@@ -105,5 +105,8 @@ jobs:
       - name: Install
         run: ./scripts/install
 
-      - name: Test
+      - name: Unit Test
         run: ./scripts/test
+
+      - name: E2E Test
+        run: ./scripts/test opencode
