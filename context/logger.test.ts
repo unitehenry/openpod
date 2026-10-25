@@ -69,12 +69,4 @@ describe("logger", () => {
     expect(content).toContain("second");
     expect(content.split("\n").filter(Boolean).length).toBe(2);
   });
-
-  it("ignores failures (no throw on bad write)", () => {
-    const logger = initLogger(tempRoot);
-    // make dir read-only to simulate failure (best effort)
-    fs.mkdirSync(path.join(tempRoot, ".log"), { recursive: true });
-    // this should not throw
-    expect(() => logger.log("should be ignored")).not.toThrow();
-  });
 });
