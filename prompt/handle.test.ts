@@ -25,7 +25,9 @@ vi.mock("node:child_process", async (importOriginal) => {
 });
 
 describe("handle", () => {
-  let mockMove: ReturnType<typeof vi.fn<(sessionId: string, directory: string) => void>>;
+  let mockMove: ReturnType<
+    typeof vi.fn<(sessionId: string, directory: string) => void>
+  >;
   let spawn: ReturnType<typeof vi.fn>;
   let ctx: OpenpodContext;
   let baseCtx: OpenpodContext;
