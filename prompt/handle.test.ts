@@ -9,6 +9,7 @@ import {
 } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
 import { spawnSync } from "node:child_process";
 
 import type { OpenpodContext } from "../context";
@@ -26,9 +27,10 @@ vi.mock("node:child_process", async (importOriginal) => {
 describe("handle", () => {
   let mockMove: ReturnType<typeof vi.fn>;
   let ctx: OpenpodContext;
+  let baseCtx: OpenpodContext;
 
   beforeAll(async () => {
-    ctx = await init();
+    baseCtx = await init();
   });
 
   beforeEach(() => {
@@ -38,10 +40,20 @@ describe("handle", () => {
     ).mockReturnValue({
       status: 0,
     });
-    if (fs.existsSync(ctx.openpodRoot)) {
-      fs.rmSync(ctx.openpodRoot, { recursive: true, force: true });
-    }
 
+    const tempRoot = path.join(
+      os.tmpdir(),
+      `openpod-test-${Date.now()}-${Math.random()}`,
+    );
+    if (fs.existsSync(tempRoot)) {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+    fs.mkdirSync(tempRoot, { recursive: true });
+
+    ctx = {
+      ...baseCtx,
+      openpodRoot: tempRoot,
+    };
     ctx.cleanup.execute = vi.fn();
     mockMove = vi.fn();
   });
