@@ -5,4 +5,9 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$script_dir/node" --version >/dev/null
 
-npx vitest run "$@"
+if [[ "$@" == "opencode" ]]; then
+  npx vitest run opencode.test.ts
+  return 0
+fi
+
+npx vitest run --exclude opencode.test.ts "$@"
