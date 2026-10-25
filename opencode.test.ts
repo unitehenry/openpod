@@ -40,7 +40,7 @@ describe("opencode", () => {
     ).toBe(true);
   });
 
-  it("not create openpod instance for uninitialized git repo", async () => {
+  it("should not create openpod instance for uninitialized git repo", async () => {
     // Create a temp directory that is not a git repo
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openpod-e2e-"));
 
@@ -50,6 +50,43 @@ describe("opencode", () => {
 
     // Move the session to the non-git temp directory so the prompt hook
     // fires in a non-git context
+    await opencode.sessions.move({
+      sessionID: session.id,
+      directory: tempDir,
+    });
+
+    // Wait for the move to take effect
+    await new Promise((r) => setTimeout(r, 200));
+
+    // Trigger a prompt via the session API to fire the prompt hook.
+    await opencode.sessions.prompt({
+      sessionID: session.id,
+      text: "hello",
+    });
+
+    expect(fs.existsSync(path.join(openpodRoot, session.id))).toBe(false);
+
+    // Verify no lima instance was created for this session
+    const listOutput = execSync("limactl list", { encoding: "utf8" });
+    expect(listOutput).not.toContain(session.id);
+
+    // Clean up temp directory
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // ignore cleanup failures
+    }
+  });
+
+  it("should not create openpod instance for uninitialized git origin", async () => {
+    // Create a temp directory and init a git repo (but no remote origin)
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openpod-e2e-"));
+    execSync("git init", { cwd: tempDir, stdio: "ignore" });
+
+    // Register the plugin and create a session, then move it to the git dir
+    await opencode.plugin(openpod);
+    const session = await opencode.sessions.create();
+
     await opencode.sessions.move({
       sessionID: session.id,
       directory: tempDir,
