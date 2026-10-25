@@ -17,7 +17,9 @@ import { clear } from "./clear";
 
 describe("clear", () => {
   let ctx: OpenpodContext;
-  let cleanupExecute: ReturnType<typeof vi.fn<(sessionID: string) => Promise<void>>>;
+  let cleanupExecute: ReturnType<
+    typeof vi.fn<(sessionID: string) => Promise<void>>
+  >;
   let baseCtx: OpenpodContext;
 
   beforeAll(async () => {
