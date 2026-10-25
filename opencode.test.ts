@@ -1,5 +1,6 @@
 import { OpenCode } from "@opencode/sdk"
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import openpod from "./index";
 
 describe("opencode", () => {
   let opencode: Awaited<ReturnType<typeof OpenCode.create>>;
@@ -12,11 +13,19 @@ describe("opencode", () => {
     await opencode?.close?.();
   });
 
-  it("Opencode plugin cant register without limactl", async () => {
-    // TODO: temporarily unlink `limactl` from path
-    // TODO: Call await opencode.plugin(plugin) to register another plugin after startup.
-    console.log(opencode);
-    // TODO: assert limactl error is thrown
-    // TODO: cleanup finally - link `limactl` from path
+  it("registers openpod plugin with opencode", async () => {
+    await opencode.plugin(openpod);
+
+    await opencode.sessions.create();
+
+    let commands;
+
+    for (let i = 0; i < 20; i++) {
+      commands = await opencode.command.list();
+      if (commands.data.some((c) => c.name === "clear-openpod")) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+
+    expect(commands.data.some((c) => c.name === "clear-openpod")).toBe(true);
   });
 });
