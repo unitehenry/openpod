@@ -114,4 +114,70 @@ describe("opencode", () => {
       // ignore cleanup failures
     }
   });
+
+  it(
+    "should create openpod directory and lima instance for new session",
+    { timeout: 120_000 },
+    async () => {
+      // Create a temp git repo with a remote origin
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openpod-e2e-"));
+      const bareDir = fs.mkdtempSync(path.join(os.tmpdir(), "openpod-bare-"));
+      execSync("git init --bare", { cwd: bareDir, stdio: "ignore" });
+      execSync("git init", { cwd: tempDir, stdio: "ignore" });
+      execSync(`git remote add origin ${bareDir}`, {
+        cwd: tempDir,
+        stdio: "ignore",
+      });
+
+      // Register the plugin and create a session, then move it to the git dir
+      await opencode.plugin(openpod);
+      const session = await opencode.sessions.create();
+
+      await opencode.sessions.move({
+        sessionID: session.id,
+        directory: tempDir,
+      });
+
+      // Wait for the move to take effect
+      await new Promise((r) => setTimeout(r, 200));
+
+      // Trigger a prompt via the session API to fire the prompt hook.
+      await opencode.sessions.prompt({
+        sessionID: session.id,
+        text: "hello",
+      });
+
+      // Verify the openpod directory was created (cloned)
+      const sessionDir = path.join(openpodRoot, session.id);
+      expect(fs.existsSync(sessionDir)).toBe(true);
+
+      // Verify a lima instance was created for this session
+      const listOutput = execSync("limactl list", { encoding: "utf8" });
+      expect(listOutput).toContain(session.id);
+
+      // Clean up: remove lima instance and cloned directory
+      try {
+        execSync(`limactl delete --force ${session.id}`, {
+          stdio: "ignore",
+        });
+      } catch {
+        // ignore cleanup failures
+      }
+      try {
+        fs.rmSync(sessionDir, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+      try {
+        fs.rmSync(bareDir, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+    },
+  );
 });
