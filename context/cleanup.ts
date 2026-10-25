@@ -12,7 +12,7 @@ export function initCleanup(openpodRoot: string, logger?: Logger): Cleanup {
   const log = (message: string, level?: string) =>
     logger?.log?.(message, level);
 
-  function stopLima(limaName: string): void {
+  function stopLimaInstance(limaName: string): void {
     // best-effort stop (ignore errors)
     try {
       spawnSync("limactl", ["stop", limaName, "--force"], { stdio: "ignore" });
@@ -22,7 +22,7 @@ export function initCleanup(openpodRoot: string, logger?: Logger): Cleanup {
     }
   }
 
-  function deleteLima(limaName: string): void {
+  function deleteLimaInstance(limaName: string): void {
     // delete the lima instance
     try {
       const result = spawnSync("limactl", ["delete", limaName, "--force"], {
@@ -56,8 +56,8 @@ export function initCleanup(openpodRoot: string, logger?: Logger): Cleanup {
 
     log(`[cleanup] starting for ${sessionID}`);
 
-    stopLima(limaName);
-    deleteLima(limaName);
+    stopLimaInstance(limaName);
+    deleteLimaInstance(limaName);
     removePodDirectory(podDir);
   }
 
