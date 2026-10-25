@@ -1,10 +1,18 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+  vi,
+} from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as os from "node:os";
 import { spawnSync } from "node:child_process";
 
 import type { OpenpodContext } from "../context";
+import { init } from "../context";
 import { handle } from "./handle";
 
 vi.mock("node:child_process", async (importOriginal) => {
@@ -16,9 +24,12 @@ vi.mock("node:child_process", async (importOriginal) => {
 });
 
 describe("handle", () => {
-  let tempRoot: string;
   let mockMove: ReturnType<typeof vi.fn>;
   let ctx: OpenpodContext;
+
+  beforeAll(async () => {
+    ctx = await init();
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -27,26 +38,17 @@ describe("handle", () => {
     ).mockReturnValue({
       status: 0,
     });
-    tempRoot = path.join(
-      os.tmpdir(),
-      `openpod-test-${Date.now()}-${Math.random()}`,
-    );
-    if (fs.existsSync(tempRoot)) {
-      fs.rmSync(tempRoot, { recursive: true, force: true });
+    if (fs.existsSync(ctx.openpodRoot)) {
+      fs.rmSync(ctx.openpodRoot, { recursive: true, force: true });
     }
-    fs.mkdirSync(tempRoot, { recursive: true });
 
+    ctx.cleanup.execute = vi.fn();
     mockMove = vi.fn();
-    ctx = {
-      logger: { log: () => {} },
-      openpodRoot: tempRoot,
-      cleanup: { execute: vi.fn() } as unknown as OpenpodContext["cleanup"],
-    };
   });
 
   afterEach(() => {
-    if (fs.existsSync(tempRoot)) {
-      fs.rmSync(tempRoot, { recursive: true, force: true });
+    if (fs.existsSync(ctx.openpodRoot)) {
+      fs.rmSync(ctx.openpodRoot, { recursive: true, force: true });
     }
   });
 
@@ -106,7 +108,7 @@ describe("handle", () => {
   it("clones project and moves when needs move and target does not exist", () => {
     const sessionId = "clone-sess";
     const dir = "/real/project";
-    const target = path.join(tempRoot, sessionId);
+    const target = path.join(ctx.openpodRoot, sessionId);
     const origin = "https://example.com/repo.git";
 
     (
@@ -149,7 +151,7 @@ describe("handle", () => {
   it("moves session when target already exists (no clone)", () => {
     const sessionId = "existing";
     const dir = "/other/location";
-    const target = path.join(tempRoot, sessionId);
+    const target = path.join(ctx.openpodRoot, sessionId);
     fs.mkdirSync(target, { recursive: true });
 
     (
@@ -174,7 +176,7 @@ describe("handle", () => {
 
   it("does not move when already at target dir", () => {
     const sessionId = "same";
-    const target = path.join(tempRoot, sessionId);
+    const target = path.join(ctx.openpodRoot, sessionId);
     fs.mkdirSync(target, { recursive: true });
 
     (
@@ -194,7 +196,7 @@ describe("handle", () => {
 
   it("skips create if lima instance already exists", () => {
     const sessionId = "has-lima";
-    const dir = path.join(tempRoot, sessionId);
+    const dir = path.join(ctx.openpodRoot, sessionId);
     fs.mkdirSync(dir, { recursive: true });
 
     (
@@ -246,7 +248,7 @@ describe("handle", () => {
 
   it("handles lima start failure (does not throw)", () => {
     const sessionId = "fail-start";
-    const dir = path.join(tempRoot, sessionId);
+    const dir = path.join(ctx.openpodRoot, sessionId);
     fs.mkdirSync(dir, { recursive: true });
 
     (
