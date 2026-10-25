@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+  vi,
+} from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -8,6 +16,7 @@ import { clear } from "./clear";
 
 describe("clear", () => {
   let ctx: OpenpodContext;
+  let cleanupExecute: ReturnType<typeof vi.fn>;
 
   beforeAll(async () => {
     ctx = await init();
@@ -17,6 +26,8 @@ describe("clear", () => {
     if (fs.existsSync(ctx.openpodRoot)) {
       fs.rmSync(ctx.openpodRoot, { recursive: true, force: true });
     }
+    cleanupExecute = vi.fn();
+    ctx.cleanup = { execute: cleanupExecute };
   });
 
   afterEach(() => {
@@ -30,6 +41,7 @@ describe("clear", () => {
     expect(fs.existsSync(ctx.openpodRoot)).toBe(true);
     const entries = fs.readdirSync(ctx.openpodRoot);
     expect(entries).toContain(".log");
+    expect(cleanupExecute).toHaveBeenCalledWith(".log");
   });
 
   it("removes session directories and leaves only .log after cleanup", async () => {
@@ -46,6 +58,9 @@ describe("clear", () => {
     expect(fs.existsSync(ctx.openpodRoot)).toBe(true);
     const entries = fs.readdirSync(ctx.openpodRoot);
     expect(entries).toEqual([".log"]);
+    expect(cleanupExecute).toHaveBeenCalledWith("session-abc");
+    expect(cleanupExecute).toHaveBeenCalledWith("session-xyz");
+    expect(cleanupExecute).toHaveBeenCalledWith(".log");
   });
 
   it("ignores non-directory entries and cleans sessions", async () => {
@@ -60,6 +75,8 @@ describe("clear", () => {
     expect(fs.existsSync(ctx.openpodRoot)).toBe(true);
     const entries = fs.readdirSync(ctx.openpodRoot);
     expect(entries).toEqual([".log"]);
+    expect(cleanupExecute).toHaveBeenCalledWith("real-session");
+    expect(cleanupExecute).toHaveBeenCalledWith(".log");
   });
 
   it("handles errors gracefully without throwing", async () => {
