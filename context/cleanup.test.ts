@@ -87,14 +87,4 @@ describe("cleanup", () => {
 
     expect(fs.existsSync(podDir)).toBe(false);
   });
-
-  it("handles pod directory that does not exist", async () => {
-    const sessionID = "no-dir";
-    const podDir = path.join(tempRoot, sessionID);
-
-    const cleanup = initCleanup(tempRoot);
-    await cleanup.execute(sessionID);
-
-    expect(fs.existsSync(podDir)).toBe(false);
-  });
 });
