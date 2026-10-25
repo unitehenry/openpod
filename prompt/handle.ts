@@ -1,14 +1,17 @@
-import type { Plugin } from "@opencode/plugin";
+import type { OpenpodContext } from "../context";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import type { OpenpodContext } from "./context";
+type HandleParams = {
+  ctx: OpenpodContext;
+  sessionId: string;
+  dir: string;
+  move: (sessionId: string, directory: string) => void;
+};
 
-export async function registerPrompt(
-  ctx: Plugin.Context,
-  deps: OpenpodContext,
-): Promise<void> {
+export function handle(params: HandleParams): void {
+  const { ctx: deps, sessionId, dir, move } = params;
   const { logger, openpodRoot } = deps;
 
   function isGitEnabled(dir: string): boolean {
@@ -211,86 +214,76 @@ export async function registerPrompt(
     }
   }
 
-  logger.log("registering prompt");
+  const gitEnabled = isGitEnabled(dir);
+  logger.log(`session ${sessionId} prompt - gitEnabled: ${gitEnabled}`);
 
-  await ctx.session.hook("prompt", async (event) => {
-    const session = await ctx.session.get({ sessionID: event.sessionID });
-    const dir = session.location.directory;
-    const gitEnabled = isGitEnabled(dir);
-    logger.log(`session ${event.sessionID} prompt - gitEnabled: ${gitEnabled}`);
+  const target = path.join(openpodRoot, sessionId);
+  const needsMove = dir !== target;
 
-    const target = path.join(openpodRoot, event.sessionID);
-    const needsMove = dir !== target;
+  logger.log(
+    `needs move for project dir ${dir}? ${needsMove} (target=${target})`,
+  );
 
-    logger.log(
-      `needs move for project dir ${dir}? ${needsMove} (target=${target})`,
-    );
+  if (!gitEnabled) {
+    logger.log(`git is not enabled`);
+    return;
+  }
 
-    if (!gitEnabled) {
-      logger.log(`git is not enabled`);
-      return;
-    }
+  const limaName = sessionId;
+  const podDir = target;
 
-    const limaName = event.sessionID;
-    const podDir = target;
-
-    if (needsMove) {
-      if (fs.existsSync(target)) {
-        logger.log(`${target} already exists`);
-        await ctx.session.move({
-          sessionID: event.sessionID,
-          directory: target,
-        });
-      } else {
-        const repoRoot = getRepoRoot(dir);
-
-        if (!repoRoot) {
-          logger.log(`failed to get repo root`);
-          return;
-        }
-
-        logger.log(`cloning ${repoRoot} -> ${target}`);
-        fs.mkdirSync(openpodRoot, { recursive: true });
-
-        cloneRepo(repoRoot, target);
-
-        logger.log(`clone complete, moving session to ${target}`);
-        await ctx.session.move({
-          sessionID: event.sessionID,
-          directory: target,
-        });
-      }
+  if (needsMove) {
+    if (fs.existsSync(target)) {
+      logger.log(`${target} already exists`);
+      move(sessionId, target);
     } else {
-      logger.log(`already in ${target} directory`);
-    }
+      const repoRoot = getRepoRoot(dir);
 
-    // ensure lima instance for this pod
-    if (!limaInstanceExists(limaName)) {
-      logger.log(`creating lima instance ${limaName} (mount-only ${podDir}:w)`);
-      const createResult = spawnSync(
-        "limactl",
-        [
-          "create",
-          `--name=${limaName}`,
-          `--mount-only=${podDir}:w`,
-          "template:default",
-          "--yes",
-        ],
-        {
-          stdio: "ignore",
-        },
-      );
-      if (createResult.status !== 0) {
-        logger.log(`limactl create exited with ${createResult.status}`);
+      if (!repoRoot) {
+        logger.log(`failed to get repo root`);
+        return;
       }
-    }
 
-    logger.log(`starting lima instance ${limaName}`);
-    const startResult = spawnSync("limactl", ["start", limaName, "--yes"], {
-      stdio: "ignore",
-    });
-    if (startResult.status !== 0) {
-      logger.log(`limactl start exited with ${startResult.status}`);
+      logger.log(`cloning ${repoRoot} -> ${target}`);
+      fs.mkdirSync(openpodRoot, { recursive: true });
+
+      cloneRepo(repoRoot, target);
+
+      logger.log(`clone complete, moving session to ${target}`);
+      move(sessionId, target);
     }
+  } else {
+    logger.log(`already in ${target} directory`);
+  }
+
+  // ensure lima instance for this pod
+  if (!limaInstanceExists(limaName)) {
+    logger.log(`creating lima instance ${limaName} (mount-only ${podDir}:w)`);
+    const createResult = spawnSync(
+      "limactl",
+      [
+        "create",
+        `--name=${limaName}`,
+        `--mount-only=${podDir}:w`,
+        "template:default",
+        "--yes",
+      ],
+      {
+        stdio: "ignore",
+      },
+    );
+    if (createResult.status !== 0) {
+      logger.log(`limactl create exited with ${createResult.status}`);
+    }
+  }
+
+  logger.log(`starting lima instance ${limaName}`);
+  const startResult = spawnSync("limactl", ["start", limaName, "--yes"], {
+    stdio: "ignore",
   });
+  if (startResult.status !== 0) {
+    logger.log(`limactl start exited with ${startResult.status}`);
+  }
 }
+
+export type { HandleParams };
