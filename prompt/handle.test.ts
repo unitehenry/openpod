@@ -25,7 +25,8 @@ vi.mock("node:child_process", async (importOriginal) => {
 });
 
 describe("handle", () => {
-  let mockMove: ReturnType<typeof vi.fn>;
+  let mockMove: ReturnType<typeof vi.fn<(sessionId: string, directory: string) => void>>;
+  let spawn: ReturnType<typeof vi.fn>;
   let ctx: OpenpodContext;
   let baseCtx: OpenpodContext;
 
@@ -35,9 +36,8 @@ describe("handle", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (
-      spawnSync as unknown as { mockReturnValue: (val: unknown) => void }
-    ).mockReturnValue({
+    spawn = spawnSync as unknown as ReturnType<typeof vi.fn>;
+    spawn.mockReturnValue({
       status: 0,
     });
 
@@ -75,9 +75,7 @@ describe("handle", () => {
   });
 
   it("returns early if not git enabled", () => {
-    (
-      spawnSync as unknown as { mockReturnValue: (val: unknown) => void }
-    ).mockReturnValue({ status: 1 });
+    spawn.mockReturnValue({ status: 1 });
 
     handle({
       ctx,
@@ -95,11 +93,7 @@ describe("handle", () => {
   });
 
   it("returns early for invalid git (no origin)", () => {
-    (
-      spawnSync as unknown as {
-        mockReturnValueOnce: (val: unknown) => typeof spawnSync;
-      }
-    )
+    spawn
       .mockReturnValueOnce({ status: 0 }) // isGitEnabled
       .mockReturnValueOnce({ status: 1, stdout: "" }); // getOriginUrl
 
@@ -123,11 +117,7 @@ describe("handle", () => {
     const target = path.join(ctx.openpodRoot, sessionId);
     const origin = "https://example.com/repo.git";
 
-    (
-      spawnSync as unknown as {
-        mockReturnValueOnce: (val: unknown) => typeof spawnSync;
-      }
-    )
+    spawn
       .mockReturnValueOnce({ status: 0 }) // isGit
       .mockReturnValueOnce({ status: 0, stdout: origin + "\n" }) // getOrigin
       .mockReturnValueOnce({ status: 0 }) // clone git
@@ -166,11 +156,7 @@ describe("handle", () => {
     const target = path.join(ctx.openpodRoot, sessionId);
     fs.mkdirSync(target, { recursive: true });
 
-    (
-      spawnSync as unknown as {
-        mockReturnValueOnce: (val: unknown) => typeof spawnSync;
-      }
-    )
+    spawn
       .mockReturnValueOnce({ status: 0 }) // is git
       .mockReturnValueOnce({ status: 1 }) // lima not
       .mockReturnValueOnce({ status: 0 }) // create
@@ -191,11 +177,7 @@ describe("handle", () => {
     const target = path.join(ctx.openpodRoot, sessionId);
     fs.mkdirSync(target, { recursive: true });
 
-    (
-      spawnSync as unknown as {
-        mockReturnValueOnce: (val: unknown) => typeof spawnSync;
-      }
-    )
+    spawn
       .mockReturnValueOnce({ status: 0 }) // git
       .mockReturnValueOnce({ status: 1 }) // lima not exist
       .mockReturnValueOnce({ status: 0 })
@@ -211,11 +193,7 @@ describe("handle", () => {
     const dir = path.join(ctx.openpodRoot, sessionId);
     fs.mkdirSync(dir, { recursive: true });
 
-    (
-      spawnSync as unknown as {
-        mockReturnValueOnce: (val: unknown) => typeof spawnSync;
-      }
-    )
+    spawn
       .mockReturnValueOnce({ status: 0 }) // git
       .mockReturnValueOnce({ status: 0 }) // lima exists (list status 0)
       .mockReturnValueOnce({ status: 0 }); // start only
@@ -237,11 +215,7 @@ describe("handle", () => {
     const sessionId = "fail-create";
     const dir = "/proj";
 
-    (
-      spawnSync as unknown as {
-        mockReturnValueOnce: (val: unknown) => typeof spawnSync;
-      }
-    )
+    spawn
       .mockReturnValueOnce({ status: 0 }) // git
       .mockReturnValueOnce({ status: 0, stdout: "url\n" }) // origin
       .mockReturnValueOnce({ status: 0 }) // clone
@@ -263,11 +237,7 @@ describe("handle", () => {
     const dir = path.join(ctx.openpodRoot, sessionId);
     fs.mkdirSync(dir, { recursive: true });
 
-    (
-      spawnSync as unknown as {
-        mockReturnValueOnce: (val: unknown) => typeof spawnSync;
-      }
-    )
+    spawn
       .mockReturnValueOnce({ status: 0 }) // git
       .mockReturnValueOnce({ status: 0 }) // lima exists
       .mockReturnValueOnce({ status: 1 }); // start fails
@@ -280,11 +250,7 @@ describe("handle", () => {
     const dir = "/proj";
     const origin = "https://bad";
 
-    (
-      spawnSync as unknown as {
-        mockReturnValueOnce: (val: unknown) => typeof spawnSync;
-      }
-    )
+    spawn
       .mockReturnValueOnce({ status: 0 }) // git
       .mockReturnValueOnce({ status: 0, stdout: origin + "\n" })
       .mockReturnValueOnce({ status: 1 }); // clone fails -- no more calls
