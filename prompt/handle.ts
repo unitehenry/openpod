@@ -59,14 +59,14 @@ export function handle(params: HandleParams): void {
     }
   }
 
-  function createLimaInstance(limaName: string, podDir: string): void {
-    logger.log(`creating lima instance ${limaName} (mount-only ${podDir}:w)`);
+  function createLimaInstance(limaName: string, target: string): void {
+    logger.log(`creating lima instance ${limaName} (mount-only ${target}:w)`);
     const createResult = spawnSync(
       "limactl",
       [
         "create",
         `--name=${limaName}`,
-        `--mount-only=${podDir}:w`,
+        `--mount-only=${target}:w`,
         "template:default",
         "--yes",
       ],
@@ -121,7 +121,6 @@ export function handle(params: HandleParams): void {
   );
 
   const limaName = sessionId;
-  const podDir = target;
 
   if (needsMove) {
     if (fs.existsSync(target)) {
@@ -150,7 +149,7 @@ export function handle(params: HandleParams): void {
 
   // 5. Create lima instance if necessary
   if (!limaInstanceExists(limaName)) {
-    createLimaInstance(limaName, podDir);
+    createLimaInstance(limaName, target);
   }
 
   // 6. Start lima instance
