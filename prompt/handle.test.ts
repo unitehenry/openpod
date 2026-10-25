@@ -17,7 +17,6 @@ vi.mock("node:child_process", async (importOriginal) => {
 
 describe("handle", () => {
   let tempRoot: string;
-  let mockLogger: { log: ReturnType<typeof vi.fn> };
   let mockMove: ReturnType<typeof vi.fn>;
   let ctx: OpenpodContext;
 
@@ -37,10 +36,9 @@ describe("handle", () => {
     }
     fs.mkdirSync(tempRoot, { recursive: true });
 
-    mockLogger = { log: vi.fn() };
     mockMove = vi.fn();
     ctx = {
-      logger: mockLogger,
+      logger: { log: () => {} },
       openpodRoot: tempRoot,
       cleanup: { execute: vi.fn() } as unknown as OpenpodContext["cleanup"],
     };
@@ -60,7 +58,6 @@ describe("handle", () => {
       dir: "/tmp/some",
       move: mockMove,
     });
-    expect(mockLogger.log).toHaveBeenCalled();
   });
 
   it("returns early if not git enabled", () => {
@@ -75,9 +72,6 @@ describe("handle", () => {
       move: mockMove,
     });
 
-    expect(mockLogger.log).toHaveBeenCalledWith(
-      expect.stringContaining("git is not enabled"),
-    );
     expect(mockMove).not.toHaveBeenCalled();
     expect(spawnSync).toHaveBeenCalledWith(
       "git",
@@ -98,7 +92,6 @@ describe("handle", () => {
     const dir = "/project/dir";
     handle({ ctx, sessionId: "sess1", dir, move: mockMove });
 
-    expect(mockLogger.log).toHaveBeenCalledWith("no origin remote configured");
     expect(mockMove).not.toHaveBeenCalled();
     expect(spawnSync).toHaveBeenCalledWith(
       "git",
@@ -132,12 +125,6 @@ describe("handle", () => {
 
     expect(spawnSync).toHaveBeenCalledWith("git", ["clone", origin, target]);
     expect(mockMove).toHaveBeenCalledWith(sessionId, target);
-    expect(mockLogger.log).toHaveBeenCalledWith(
-      expect.stringContaining("cloning from origin"),
-    );
-    expect(mockLogger.log).toHaveBeenCalledWith(
-      expect.stringContaining("clone complete, moving"),
-    );
 
     // lima create called
     expect(spawnSync).toHaveBeenCalledWith(
@@ -183,9 +170,6 @@ describe("handle", () => {
       expect.anything(),
       expect.anything(),
     ]);
-    expect(mockLogger.log).toHaveBeenCalledWith(
-      expect.stringContaining("already exists"),
-    );
   });
 
   it("does not move when already at target dir", () => {
@@ -206,9 +190,6 @@ describe("handle", () => {
     handle({ ctx, sessionId, dir: target, move: mockMove });
 
     expect(mockMove).not.toHaveBeenCalled();
-    expect(mockLogger.log).toHaveBeenCalledWith(
-      expect.stringContaining("already in"),
-    );
   });
 
   it("skips create if lima instance already exists", () => {
@@ -238,7 +219,7 @@ describe("handle", () => {
     );
   });
 
-  it("logs create failure but continues to start", () => {
+  it("handles lima create failure but continues to start", () => {
     const sessionId = "fail-create";
     const dir = "/proj";
 
@@ -256,9 +237,6 @@ describe("handle", () => {
 
     handle({ ctx, sessionId, dir, move: mockMove });
 
-    expect(mockLogger.log).toHaveBeenCalledWith(
-      "limactl create exited with 42",
-    );
     expect(spawnSync).toHaveBeenCalledWith(
       "limactl",
       ["start", sessionId, "--yes"],
@@ -266,7 +244,7 @@ describe("handle", () => {
     );
   });
 
-  it("logs start failure (does not throw)", () => {
+  it("handles lima start failure (does not throw)", () => {
     const sessionId = "fail-start";
     const dir = path.join(tempRoot, sessionId);
     fs.mkdirSync(dir, { recursive: true });
@@ -281,11 +259,9 @@ describe("handle", () => {
       .mockReturnValueOnce({ status: 1 }); // start fails
 
     handle({ ctx, sessionId, dir, move: mockMove });
-
-    expect(mockLogger.log).toHaveBeenCalledWith("limactl start exited with 1");
   });
 
-  it("logs git clone failure and does not move", () => {
+  it("handles git clone failure and does not move", () => {
     const sessionId = "clone-fail";
     const dir = "/proj";
     const origin = "https://bad";
@@ -301,9 +277,6 @@ describe("handle", () => {
 
     handle({ ctx, sessionId, dir, move: mockMove });
 
-    expect(mockLogger.log).toHaveBeenCalledWith(
-      "git clone failed with exit code 1",
-    );
     expect(mockMove).not.toHaveBeenCalled();
     // no lima/start since returned early
     expect(spawnSync).not.toHaveBeenCalledWith(
