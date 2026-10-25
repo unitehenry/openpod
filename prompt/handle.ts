@@ -29,177 +29,22 @@ export function handle(params: HandleParams): void {
     }
   }
 
-  function getRepoRoot(dir: string): string | null {
+  function getOriginUrl(dir: string): string | null {
     try {
       const result = spawnSync(
         "git",
-        ["-C", dir, "rev-parse", "--show-toplevel"],
+        ["-C", dir, "remote", "get-url", "origin"],
         {
           encoding: "utf8",
           stdio: ["ignore", "pipe", "ignore"],
         },
       );
-      if (result.status !== 0 || !result.stdout) {
-        throw new Error(result.stderr?.toString() || "git rev-parse failed");
+      if (result.status !== 0 || !result.stdout?.trim()) {
+        return null;
       }
       return result.stdout.trim();
-    } catch (err) {
-      logger.log(`failed to determine git root for ${dir}: ${err}`);
+    } catch {
       return null;
-    }
-  }
-
-  function cloneRepo(source: string, target: string): void {
-    try {
-      logger.log(`cloning ${source} -> ${target}`);
-
-      // Try to clone from the real remote (to get the latest default branch)
-      const remoteResult = spawnSync(
-        "git",
-        ["-C", source, "remote", "get-url", "origin"],
-        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-      );
-
-      if (remoteResult.status === 0 && remoteResult.stdout.trim()) {
-        const remoteUrl = remoteResult.stdout.trim();
-
-        // Query the remote directly for its current default branch (latest)
-        const symrefResult = spawnSync(
-          "git",
-          ["-C", source, "ls-remote", "--symref", remoteUrl, "HEAD"],
-          { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-        );
-
-        let cloneArgs = [remoteUrl, target];
-
-        if (symrefResult.status === 0 && symrefResult.stdout) {
-          // Example output:
-          // ref: refs/heads/main	HEAD
-          // <sha>	HEAD
-          const match = symrefResult.stdout.match(/ref: refs\/heads\/(\S+)/);
-          if (match) {
-            const branch = match[1];
-            logger.log(`cloning latest default branch ${branch} from remote`);
-            cloneArgs = ["--branch", branch, remoteUrl, target];
-          } else {
-            logger.log(
-              `cloning from remote ${remoteUrl} (using remote default branch)`,
-            );
-          }
-        } else {
-          logger.log(`cloning from remote ${remoteUrl} (default branch)`);
-        }
-
-        const result = spawnSync("git", ["clone", ...cloneArgs]);
-        if (result.status !== 0) {
-          throw new Error(`git clone failed with exit code ${result.status}`);
-        }
-        copyRemotes(source, target);
-        return;
-      }
-
-      // Fallback: no "origin" remote, clone from local source and try to
-      // respect its origin/HEAD if present.
-      logger.log(
-        "no origin remote configured, falling back to local source clone",
-      );
-
-      let args = [source, target];
-
-      const headRef = spawnSync(
-        "git",
-        ["-C", source, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"],
-        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-      );
-
-      if (headRef.status === 0 && headRef.stdout) {
-        const ref = headRef.stdout.trim();
-        const branch = ref.replace(/^refs\/remotes\/origin\//, "");
-        if (branch) {
-          logger.log(
-            `cloning default branch ${branch} (from local origin/HEAD)`,
-          );
-          args = ["--branch", branch, source, target];
-        }
-      } else {
-        logger.log("no origin/HEAD ref found, cloning source as-is");
-      }
-
-      const result = spawnSync("git", ["clone", ...args]);
-      if (result.status !== 0) {
-        throw new Error(`git clone failed with exit code ${result.status}`);
-      }
-      copyRemotes(source, target);
-    } catch (err) {
-      logger.log(`${err}`);
-      try {
-        fs.rmSync(target, { recursive: true, force: true });
-      } catch {
-        // ignore cleanup failure
-      }
-    }
-  }
-
-  function copyRemotes(source: string, target: string): void {
-    try {
-      logger.log(`copying remotes from ${source} to ${target}`);
-
-      // clone always sets "origin" to point at the local source path;
-      // remove it so we can restore the original remotes (if any)
-      spawnSync("git", ["-C", target, "remote", "remove", "origin"], {
-        stdio: "ignore",
-      });
-
-      const listResult = spawnSync("git", ["-C", source, "remote", "-v"], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-      });
-      if (listResult.status !== 0 || !listResult.stdout?.trim()) {
-        logger.log("no remotes found in source (origin removed from clone)");
-        return;
-      }
-
-      const lines = listResult.stdout.trim().split("\n");
-      const remotes: Record<string, { fetch?: string; push?: string }> = {};
-
-      for (const line of lines) {
-        const match = line.match(/^(\S+)\s+(\S+)\s+\((fetch|push)\)$/);
-        if (match) {
-          const [, name, url, type] = match;
-          if (!remotes[name]) {
-            remotes[name] = {};
-          }
-          if (type === "fetch") {
-            remotes[name].fetch = url;
-          } else {
-            remotes[name].push = url;
-          }
-        }
-      }
-
-      for (const [name, urls] of Object.entries(remotes)) {
-        if (urls.fetch) {
-          const addRes = spawnSync(
-            "git",
-            ["-C", target, "remote", "add", name, urls.fetch],
-            { stdio: "ignore" },
-          );
-          if (addRes.status !== 0) {
-            logger.log(`failed to add remote ${name} ${urls.fetch}`);
-          }
-        }
-        if (urls.push && urls.push !== urls.fetch) {
-          spawnSync(
-            "git",
-            ["-C", target, "remote", "set-url", "--push", name, urls.push],
-            { stdio: "ignore" },
-          );
-        }
-      }
-
-      logger.log(`copied ${Object.keys(remotes).length} remotes`);
-    } catch (err) {
-      logger.log(`copy remotes error: ${err}`);
     }
   }
 
@@ -214,8 +59,14 @@ export function handle(params: HandleParams): void {
     }
   }
 
+  // 1. Check if git is enabled
   const gitEnabled = isGitEnabled(dir);
   logger.log(`session ${sessionId} prompt - gitEnabled: ${gitEnabled}`);
+
+  if (!gitEnabled) {
+    logger.log(`git is not enabled`);
+    return;
+  }
 
   const target = path.join(openpodRoot, sessionId);
   const needsMove = dir !== target;
@@ -223,11 +74,6 @@ export function handle(params: HandleParams): void {
   logger.log(
     `needs move for project dir ${dir}? ${needsMove} (target=${target})`,
   );
-
-  if (!gitEnabled) {
-    logger.log(`git is not enabled`);
-    return;
-  }
 
   const limaName = sessionId;
   const podDir = target;
@@ -237,17 +83,27 @@ export function handle(params: HandleParams): void {
       logger.log(`${target} already exists`);
       move(sessionId, target);
     } else {
-      const repoRoot = getRepoRoot(dir);
-
-      if (!repoRoot) {
-        logger.log(`failed to get repo root`);
+      // 2. Check if origin remote exists
+      const originUrl = getOriginUrl(dir);
+      if (!originUrl) {
+        logger.log(`no origin remote configured`);
         return;
       }
 
-      logger.log(`cloning ${repoRoot} -> ${target}`);
+      // 3. Clone repo from origin to target dir if necessary (no need to clone remotes)
+      logger.log(`cloning from origin ${originUrl} -> ${target}`);
       fs.mkdirSync(openpodRoot, { recursive: true });
 
-      cloneRepo(repoRoot, target);
+      const result = spawnSync("git", ["clone", originUrl, target]);
+      if (result.status !== 0) {
+        logger.log(`git clone failed with exit code ${result.status}`);
+        try {
+          fs.rmSync(target, { recursive: true, force: true });
+        } catch {
+          // ignore cleanup failure
+        }
+        return;
+      }
 
       logger.log(`clone complete, moving session to ${target}`);
       move(sessionId, target);
@@ -256,7 +112,7 @@ export function handle(params: HandleParams): void {
     logger.log(`already in ${target} directory`);
   }
 
-  // ensure lima instance for this pod
+  // 5. Create lima instance if necessary
   if (!limaInstanceExists(limaName)) {
     logger.log(`creating lima instance ${limaName} (mount-only ${podDir}:w)`);
     const createResult = spawnSync(
@@ -277,6 +133,7 @@ export function handle(params: HandleParams): void {
     }
   }
 
+  // 6. Start lima instance
   logger.log(`starting lima instance ${limaName}`);
   const startResult = spawnSync("limactl", ["start", limaName, "--yes"], {
     stdio: "ignore",
