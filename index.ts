@@ -6,8 +6,10 @@ import { registerShell } from "./shell";
 import { registerController } from "./controller";
 import { init } from "./context";
 
+const PLUGIN_ID = "openpod";
+
 export default Plugin.define({
-  id: "openpod",
+  id: PLUGIN_ID,
   async setup(ctx) {
     const openpod = await init();
 
