@@ -15,6 +15,6 @@ export default Plugin.define({
     await registerShell(ctx, openpod);
     await registerCommand(ctx, openpod);
 
-    return await registerController(ctx, openpod);
+    return registerController(ctx, openpod);
   },
 });
