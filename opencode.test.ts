@@ -180,4 +180,79 @@ describe("opencode", () => {
       }
     },
   );
+
+  it(
+    "runs shell commands within the session lima instance",
+    { timeout: 120_000 },
+    async () => {
+      // Create a temp git repo with a remote origin
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openpod-e2e-"));
+      const bareDir = fs.mkdtempSync(path.join(os.tmpdir(), "openpod-bare-"));
+      execSync("git init --bare", { cwd: bareDir, stdio: "ignore" });
+      execSync("git init", { cwd: tempDir, stdio: "ignore" });
+      execSync(`git remote add origin ${bareDir}`, {
+        cwd: tempDir,
+        stdio: "ignore",
+      });
+
+      // Register the plugin and create a session, then move it to the git dir
+      await opencode.plugin(openpod);
+      const session = await opencode.sessions.create();
+
+      await opencode.sessions.move({
+        sessionID: session.id,
+        directory: tempDir,
+      });
+
+      // Wait for the move to take effect
+      await new Promise((r) => setTimeout(r, 200));
+
+      // Trigger a prompt so the handler clones and creates the lima instance
+      await opencode.sessions.prompt({
+        sessionID: session.id,
+        text: "hello",
+      });
+
+      const sessionDir = path.join(openpodRoot, session.id);
+      expect(fs.existsSync(sessionDir)).toBe(true);
+
+      // Run a shell command inside the lima VM to verify it's accessible.
+      // Limactl start returns before SSH is ready, so we use execSync
+      // with a generous timeout directly rather than going through
+      // opencode.shell (which has a lower default timeout).
+      const hostname = execSync(`limactl shell ${session.id} hostname`, {
+        encoding: "utf8",
+        timeout: 60_000,
+      }).trim();
+
+      // Lima VMs use the instance name as hostname with underscores
+      // replaced by hyphens (hostnames can't have underscores).
+      const expectedHost = session.id.replace(/_/g, "-");
+      expect(hostname).toContain(expectedHost);
+
+      // Clean up: remove lima instance and cloned directory
+      try {
+        execSync(`limactl delete --force ${session.id}`, {
+          stdio: "ignore",
+        });
+      } catch {
+        // ignore
+      }
+      try {
+        fs.rmSync(sessionDir, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+      try {
+        fs.rmSync(bareDir, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+    },
+  );
 });
