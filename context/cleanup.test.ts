@@ -53,6 +53,8 @@ describe("cleanup", () => {
     await cleanup.execute(null);
     // @ts-expect-error testing runtime guard
     await cleanup.execute(undefined);
+
+    expect(spawnSync).not.toHaveBeenCalled();
   });
 
   it("attempts lima stop/delete", async () => {
