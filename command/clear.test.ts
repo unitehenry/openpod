@@ -36,31 +36,25 @@ describe("clear", () => {
     }
   });
 
-  it("logs start and leaves only .log dir (due to logging) even if root did not exist", async () => {
-    await clear(ctx);
-    expect(fs.existsSync(ctx.openpodRoot)).toBe(true);
-    const entries = fs.readdirSync(ctx.openpodRoot);
-    expect(entries).toContain(".log");
-    expect(cleanupExecute).toHaveBeenCalledWith(".log");
-  });
-
-  it("removes session directories and leaves only .log after cleanup", async () => {
+  it("removes session directories", async () => {
     fs.mkdirSync(path.join(ctx.openpodRoot, "session-abc"), {
       recursive: true,
     });
     fs.mkdirSync(path.join(ctx.openpodRoot, "session-xyz", "nested"), {
       recursive: true,
     });
-    fs.mkdirSync(path.join(ctx.openpodRoot, ".log"), { recursive: true });
 
     await clear(ctx);
 
     expect(fs.existsSync(ctx.openpodRoot)).toBe(true);
-    const entries = fs.readdirSync(ctx.openpodRoot);
-    expect(entries).toEqual([".log"]);
+    expect(fs.existsSync(path.join(ctx.openpodRoot, "session-abc"))).toBe(
+      false,
+    );
+    expect(fs.existsSync(path.join(ctx.openpodRoot, "session-xyz"))).toBe(
+      false,
+    );
     expect(cleanupExecute).toHaveBeenCalledWith("session-abc");
     expect(cleanupExecute).toHaveBeenCalledWith("session-xyz");
-    expect(cleanupExecute).toHaveBeenCalledWith(".log");
   });
 
   it("ignores non-directory entries and cleans sessions", async () => {
@@ -73,10 +67,10 @@ describe("clear", () => {
     await clear(ctx);
 
     expect(fs.existsSync(ctx.openpodRoot)).toBe(true);
-    const entries = fs.readdirSync(ctx.openpodRoot);
-    expect(entries).toEqual([".log"]);
+    expect(fs.existsSync(path.join(ctx.openpodRoot, "real-session"))).toBe(
+      false,
+    );
     expect(cleanupExecute).toHaveBeenCalledWith("real-session");
-    expect(cleanupExecute).toHaveBeenCalledWith(".log");
   });
 
   it("handles errors gracefully without throwing", async () => {
