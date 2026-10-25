@@ -12,14 +12,7 @@ export function initCleanup(openpodRoot: string, logger?: Logger): Cleanup {
   const log = (message: string, level?: string) =>
     logger?.log?.(message, level);
 
-  async function execute(sessionID: string): Promise<void> {
-    if (!sessionID || typeof sessionID !== "string") return;
-
-    const limaName = sessionID;
-    const podDir = path.join(openpodRoot, sessionID);
-
-    log(`[cleanup] starting for ${sessionID}`);
-
+  function stopLima(limaName: string): void {
     // best-effort stop (ignore errors)
     try {
       spawnSync("limactl", ["stop", limaName, "--force"], { stdio: "ignore" });
@@ -27,7 +20,9 @@ export function initCleanup(openpodRoot: string, logger?: Logger): Cleanup {
     } catch {
       // ignore
     }
+  }
 
+  function deleteLima(limaName: string): void {
     // delete the lima instance
     try {
       const result = spawnSync("limactl", ["delete", limaName, "--force"], {
@@ -37,7 +32,9 @@ export function initCleanup(openpodRoot: string, logger?: Logger): Cleanup {
     } catch (err) {
       log(`[cleanup] limactl delete error for ${limaName}: ${err}`);
     }
+  }
 
+  function removePodDirectory(podDir: string): void {
     // remove the openpod directory
     try {
       if (fs.existsSync(podDir)) {
@@ -49,6 +46,19 @@ export function initCleanup(openpodRoot: string, logger?: Logger): Cleanup {
     } catch (err) {
       log(`[cleanup] failed to remove ${podDir}: ${err}`);
     }
+  }
+
+  async function execute(sessionID: string): Promise<void> {
+    if (!sessionID || typeof sessionID !== "string") return;
+
+    const limaName = sessionID;
+    const podDir = path.join(openpodRoot, sessionID);
+
+    log(`[cleanup] starting for ${sessionID}`);
+
+    stopLima(limaName);
+    deleteLima(limaName);
+    removePodDirectory(podDir);
   }
 
   return { execute };
