@@ -1,5 +1,8 @@
 <p align="center">
   <img src="logo.svg" alt="OpenPod" width="204" />
+</p>
+
+<p align="center">
   Give each opencode session an dedicated virtual machine
 </p>
 
