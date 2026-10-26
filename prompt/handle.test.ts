@@ -142,13 +142,13 @@ describe("handle", () => {
         "template:default",
         "--yes",
       ],
-      { stdio: "ignore" },
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     );
     // start
     expect(spawnSync).toHaveBeenCalledWith(
       "limactl",
       ["start", sessionId, "--yes"],
-      { stdio: "ignore" },
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     );
   });
 
@@ -209,7 +209,7 @@ describe("handle", () => {
     expect(spawnSync).toHaveBeenCalledWith(
       "limactl",
       ["start", sessionId, "--yes"],
-      { stdio: "ignore" },
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     );
   });
 
@@ -230,7 +230,7 @@ describe("handle", () => {
     expect(spawnSync).toHaveBeenCalledWith(
       "limactl",
       ["start", sessionId, "--yes"],
-      { stdio: "ignore" },
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     );
   });
 
