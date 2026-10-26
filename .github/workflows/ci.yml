@@ -96,6 +96,11 @@ jobs:
         with:
           node-version: 24
 
+      - name: Install x86 QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86
+
       - name: Install limactl
         run: |
           curl -fsSL $(curl -fsSL https://api.github.com/repos/lima-vm/lima/releases/latest | jq -r '.assets[] | select(.name | endswith("Linux-x86_64.tar.gz")) | .browser_download_url') | sudo tar Cxzvm /usr/local
