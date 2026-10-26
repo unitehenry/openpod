@@ -208,6 +208,43 @@ describe("opencode", () => {
       const sessionDir = path.join(openpodRoot, session.id);
       expect(fs.existsSync(sessionDir)).toBe(true);
 
+      // Wait for the prompt hook's async session.move() to land the session
+      // in the openpod directory. The create.before hook only wraps the
+      // command with `limactl shell` when cwd is inside openpodRoot.
+      for (let i = 0; i < 50; i++) {
+        const current = await opencode.sessions.get({ sessionID: session.id });
+        if (current.location?.directory === sessionDir) break;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+
+      // Call shell.create — this triggers ctx.shell.hook("create.before"),
+      // which wraps the command with `limactl shell ... bash -c 'hostname'`
+      // so it executes inside the session's lima VM.
+      const shell = await opencode.shell.create({
+        command: "hostname",
+        cwd: sessionDir,
+      });
+
+      // Wait for the shell command to finish
+      for (let i = 0; i < 60; i++) {
+        const info = await opencode.shell.get({
+          id: shell.data.id,
+          location: shell.location,
+        });
+        if (info.data.status !== "running") break;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+
+      const output = await opencode.shell.output({
+        id: shell.data.id,
+        location: shell.location,
+      });
+
+      // hostname inside a lima VM is lima-<instance-name>, and lima replaces
+      // underscores with hyphens because hostnames can't contain underscores.
+      const expectedHost = session.id.replace(/_/g, "-");
+      expect(output.data.output).toContain(expectedHost);
+
       // Clean up
       await cleanup(session.id, [sessionDir, tempDir, bareDir]);
     },
