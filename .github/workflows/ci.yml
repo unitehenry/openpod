@@ -96,15 +96,54 @@ jobs:
         with:
           node-version: 24
 
+      - name: Prepare QEMU cache directory
+        run: mkdir -p ~/.cache/qemu-debs
+
+      - name: Cache QEMU packages
+        id: cache-qemu
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/qemu-debs
+          key: ${{ runner.os }}-qemu-x86
+          restore-keys: |
+            ${{ runner.os }}-qemu-
+
       - name: Install x86 QEMU
         run: |
           sudo apt-get update
+          if [ "${{ steps.cache-qemu.outputs.cache-hit }}" == "true" ]; then
+            sudo cp ~/.cache/qemu-debs/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+          fi
           sudo apt-get install -y qemu-system-x86
+          if [ "${{ steps.cache-qemu.outputs.cache-hit }}" != "true" ]; then
+            mkdir -p ~/.cache/qemu-debs
+            sudo cp /var/cache/apt/archives/*.deb ~/.cache/qemu-debs/ 2>/dev/null || true
+            sudo chown -R $USER:$USER ~/.cache/qemu-debs
+          fi
+
+      - name: Resolve limactl version
+        id: limactl-version
+        run: |
+          mkdir -p ~/.cache/limactl
+          VERSION=$(curl -fsSL https://api.github.com/repos/lima-vm/lima/releases/latest | jq -r '.tag_name')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Cache limactl
+        id: cache-limactl
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/limactl/lima.tar.gz
+          key: ${{ runner.os }}-limactl-${{ steps.limactl-version.outputs.version }}
+          restore-keys: |
+            ${{ runner.os }}-limactl-
 
       - name: Install limactl
         run: |
-          curl -fsSL $(curl -fsSL https://api.github.com/repos/lima-vm/lima/releases/latest | jq -r '.assets[] | select(.name | endswith("Linux-x86_64.tar.gz")) | .browser_download_url') | sudo tar Cxzvm /usr/local
-
+          if [ "${{ steps.cache-limactl.outputs.cache-hit }}" != "true" ]; then
+            mkdir -p ~/.cache/limactl
+            curl -fsSL $(curl -fsSL https://api.github.com/repos/lima-vm/lima/releases/latest | jq -r '.assets[] | select(.name | endswith("Linux-x86_64.tar.gz")) | .browser_download_url') -o ~/.cache/limactl/lima.tar.gz
+          fi
+          sudo tar -C /usr/local -xzf ~/.cache/limactl/lima.tar.gz -m -v
           limactl --version
 
       - name: Install
