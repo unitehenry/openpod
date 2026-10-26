@@ -71,7 +71,9 @@ describe("opencode", () => {
 
   it("should not create openpod instance for uninitialized git repo", async () => {
     // Create a temp directory that is not a git repo
-    const tempDir = await mkdtemp(path.join(os.tmpdir(), "openpod-e2e-non-git-"));
+    const tempDir = await mkdtemp(
+      path.join(os.tmpdir(), "openpod-e2e-non-git-"),
+    );
 
     const session = await opencode.sessions.create();
 
@@ -103,7 +105,9 @@ describe("opencode", () => {
 
   it("should not create openpod instance for uninitialized git origin", async () => {
     // Create a temp directory and init a git repo (but no remote origin)
-    const tempDir = await mkdtemp(path.join(os.tmpdir(), "openpod-e2e-no-origin-"));
+    const tempDir = await mkdtemp(
+      path.join(os.tmpdir(), "openpod-e2e-no-origin-"),
+    );
     execSync("git init", { cwd: tempDir, stdio: "ignore" });
 
     const session = await opencode.sessions.create();
@@ -137,8 +141,12 @@ describe("opencode", () => {
     { timeout: 120_000 },
     async () => {
       // Create a temp git repo with a remote origin
-      const tempDir = await mkdtemp(path.join(os.tmpdir(), "openpod-e2e-happy-path-"));
-      const bareDir = await mkdtemp(path.join(os.tmpdir(), "openpod-bare-happy-path-"));
+      const tempDir = await mkdtemp(
+        path.join(os.tmpdir(), "openpod-e2e-happy-path-"),
+      );
+      const bareDir = await mkdtemp(
+        path.join(os.tmpdir(), "openpod-bare-happy-path-"),
+      );
       execSync("git init --bare", { cwd: bareDir, stdio: "ignore" });
       execSync("git init", { cwd: tempDir, stdio: "ignore" });
       execSync(`git remote add origin ${bareDir}`, {
@@ -180,8 +188,12 @@ describe("opencode", () => {
     { timeout: 120_000 },
     async () => {
       // Create a temp git repo with a remote origin
-      const tempDir = await mkdtemp(path.join(os.tmpdir(), "openpod-e2e-shell-"));
-      const bareDir = await mkdtemp(path.join(os.tmpdir(), "openpod-bare-shell-"));
+      const tempDir = await mkdtemp(
+        path.join(os.tmpdir(), "openpod-e2e-shell-"),
+      );
+      const bareDir = await mkdtemp(
+        path.join(os.tmpdir(), "openpod-bare-shell-"),
+      );
       execSync("git init --bare", { cwd: bareDir, stdio: "ignore" });
       execSync("git init", { cwd: tempDir, stdio: "ignore" });
       execSync(`git remote add origin ${bareDir}`, {
