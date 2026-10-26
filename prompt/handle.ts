@@ -3,6 +3,33 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+/**
+ * Log a failed spawn with its captured stderr/stdout. The openpod log file is
+ * not collected on CI runners, so also write the message to stderr where the
+ * CI job output can see it.
+ */
+function logFailure(
+  logger: OpenpodContext["logger"],
+  label: string,
+  result: ReturnType<typeof spawnSync>,
+): void {
+  if (result.status === 0) return;
+
+  const stderr = typeof result.stderr === "string" ? result.stderr.trim() : "";
+  const stdout = typeof result.stdout === "string" ? result.stdout.trim() : "";
+  const message = [
+    `${label} exited with ${result.status}`,
+    result.error ? `error: ${result.error.message}` : "",
+    stderr ? `stderr:\n${stderr}` : "",
+    stdout ? `stdout:\n${stdout}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  logger.log(message, "error");
+  console.error(`[openpod] ${message}`);
+}
+
 export type HandleParams = {
   ctx: OpenpodContext;
   sessionId: string;
@@ -71,29 +98,35 @@ export function handle(params: HandleParams): void {
         "--yes",
       ],
       {
-        stdio: "ignore",
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
       },
     );
-    if (createResult.status !== 0) {
-      logger.log(`limactl create exited with ${createResult.status}`);
-    }
+    logFailure(logger, `limactl create ${sessionId}`, createResult);
   }
 
   function startLimaInstance(sessionId: string): void {
     logger.log(`starting lima instance ${sessionId}`);
     const startResult = spawnSync("limactl", ["start", sessionId, "--yes"], {
-      stdio: "ignore",
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
     });
-    if (startResult.status !== 0) {
-      logger.log(`limactl start exited with ${startResult.status}`);
-    }
+    logFailure(logger, `limactl start ${sessionId}`, startResult);
   }
 
   function cloneProject(originUrl: string, target: string): boolean {
     fs.mkdirSync(openpodRoot, { recursive: true });
     const result = spawnSync("git", ["clone", originUrl, target]);
     if (result.status !== 0) {
-      logger.log(`git clone failed with exit code ${result.status}`);
+      const stderr = result.stderr?.toString().trim();
+      const message = [
+        `git clone failed with exit code ${result.status}`,
+        stderr ? `stderr:\n${stderr}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+      logger.log(message, "error");
+      console.error(`[openpod] ${message}`);
       try {
         fs.rmSync(target, { recursive: true, force: true });
       } catch {
