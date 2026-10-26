@@ -229,8 +229,13 @@ describe("opencode", () => {
         await new Promise((r) => setTimeout(r, 100));
       }
 
-      console.log('[SESSION ID] ' + session.id);
-      console.log(execSync('limactl list'), { stdio: "ignore" }.stdout);
+      console.log("[SESSION ID] " + session.id);
+      console.log(
+        execSync("limactl list", {
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "ignore"],
+        }),
+      );
 
       // Call shell.create — this triggers ctx.shell.hook("create.before"),
       // which wraps the command with `limactl shell ... bash -c 'hostname'`
