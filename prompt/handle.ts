@@ -1,6 +1,7 @@
 import type { OpenpodContext } from "../context";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 
 /**
@@ -28,6 +29,28 @@ function logFailure(
 
   logger.log(message, "error");
   console.error(`[openpod] ${message}`);
+}
+
+/**
+ * When `limactl start` fails, its own stderr usually only contains the
+ * hostagent summary. The actual QEMU error is written to ha.stderr.log.
+ */
+function logLimaHostagentLog(
+  logger: OpenpodContext["logger"],
+  sessionId: string,
+): void {
+  const instanceDir = path.join(os.homedir(), ".lima", sessionId);
+  const filePath = path.join(instanceDir, "ha.stderr.log");
+  try {
+    if (!fs.existsSync(filePath)) return;
+    const contents = fs.readFileSync(filePath, "utf8").trim();
+    if (!contents) return;
+    const message = `ha.stderr.log:\n${contents}`;
+    logger.log(message, "error");
+    console.error(`[openpod] ${message}`);
+  } catch (err) {
+    logger.log(`failed to read ${filePath}: ${err}`, "error");
+  }
 }
 
 export type HandleParams = {
@@ -112,6 +135,14 @@ export function handle(params: HandleParams): void {
       stdio: ["ignore", "pipe", "pipe"],
     });
     logFailure(logger, `limactl start ${sessionId}`, startResult);
+    if (startResult.status !== 0) {
+      logLimaHostagentLog(logger, sessionId);
+      if (process.platform === "linux") {
+        const kvmMessage = `/dev/kvm exists: ${fs.existsSync("/dev/kvm")}`;
+        logger.log(kvmMessage, "error");
+        console.error(`[openpod] ${kvmMessage}`);
+      }
+    }
   }
 
   function cloneProject(originUrl: string, target: string): boolean {
