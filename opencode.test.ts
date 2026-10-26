@@ -208,20 +208,6 @@ describe("opencode", () => {
       const sessionDir = path.join(openpodRoot, session.id);
       expect(fs.existsSync(sessionDir)).toBe(true);
 
-      // // Run a shell command inside the lima VM to verify it's accessible.
-      // // Limactl start returns before SSH is ready, so we use execSync
-      // // with a generous timeout directly rather than going through
-      // // opencode.shell (which has a lower default timeout).
-      // const hostname = execSync(`limactl shell ${session.id} hostname`, {
-      //   encoding: "utf8",
-      //   timeout: 60_000,
-      // }).trim();
-
-      // // Lima VMs use the instance name as hostname with underscores
-      // // replaced by hyphens (hostnames can't have underscores).
-      // const expectedHost = session.id.replace(/_/g, "-");
-      // expect(hostname).toContain(expectedHost);
-
       // Clean up
       await cleanup(session.id, [sessionDir, tempDir, bareDir]);
     },
