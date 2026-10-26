@@ -11,6 +11,7 @@
 - end-to-end tests (using github action runner)
 - make fs and exec operations async
 - `await opencode?.[Symbol.asyncDispose]?.();`
+- installation instructions (readme)
 
 ## End-To-End Tests
 
