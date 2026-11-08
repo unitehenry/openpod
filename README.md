@@ -12,6 +12,7 @@
 - make fs and exec operations async
 - `await opencode?.[Symbol.asyncDispose]?.();`
 - installation instructions (readme)
+- check if ubuntu and no limactl, then auto install
 
 ## End-To-End Tests
 
