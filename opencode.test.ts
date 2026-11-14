@@ -184,6 +184,108 @@ describe("opencode", () => {
   );
 
   it(
+    "should recreate lima instance when re-prompted after it is deleted",
+    { timeout: 180_000 },
+    async () => {
+      // Create a temp git repo with a remote origin
+      const tempDir = await mkdtemp(
+        path.join(os.tmpdir(), "openpod-e2e-recreate-"),
+      );
+      const bareDir = await mkdtemp(
+        path.join(os.tmpdir(), "openpod-bare-recreate-"),
+      );
+      execSync("git init --bare", { cwd: bareDir, stdio: "ignore" });
+      execSync("git init", { cwd: tempDir, stdio: "ignore" });
+      execSync(`git remote add origin ${bareDir}`, {
+        cwd: tempDir,
+        stdio: "ignore",
+      });
+
+      function limaInstanceExists(name: string): boolean {
+        try {
+          execSync(`limactl list ${name}`, { stdio: "ignore" });
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      function limaInstanceStatus(name: string): string {
+        try {
+          return execSync(`limactl list ${name} --format '{{.Status}}'`, {
+            encoding: "utf8",
+          }).trim();
+        } catch {
+          return "";
+        }
+      }
+
+      // The prompt hook creates and starts the lima instance synchronously,
+      // but poll anyway so a slow boot doesn't flake the assertion.
+      async function waitForRunningLima(name: string): Promise<string> {
+        let status = "";
+        for (let i = 0; i < 120; i++) {
+          status = limaInstanceStatus(name);
+          if (status === "Running") break;
+          await new Promise((r) => setTimeout(r, 250));
+        }
+        return status;
+      }
+
+      const session = await opencode.sessions.create();
+      const sessionDir = path.join(openpodRoot, session.id);
+
+      await opencode.sessions.move({
+        sessionID: session.id,
+        directory: tempDir,
+      });
+
+      // Wait for the move to take effect
+      await new Promise((r) => setTimeout(r, 200));
+
+      // First prompt clones the project into the openpod directory and
+      // creates + starts the lima instance.
+      await opencode.sessions.prompt({
+        sessionID: session.id,
+        text: "hello",
+      });
+
+      // Verify the pod exists
+      expect(fs.existsSync(sessionDir)).toBe(true);
+      expect(limaInstanceExists(session.id)).toBe(true);
+      expect(await waitForRunningLima(session.id)).toBe("Running");
+
+      // Wait for the prompt hook's async session.move() to land the session
+      // in the openpod directory before re-prompting.
+      for (let i = 0; i < 50; i++) {
+        const current = await opencode.sessions.get({ sessionID: session.id });
+        if (current.location?.directory === sessionDir) break;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+
+      // Delete the lima instance out from under the session, leaving the
+      // cloned pod directory in place.
+      execSync(`limactl delete --force ${session.id}`, { stdio: "ignore" });
+      expect(limaInstanceExists(session.id)).toBe(false);
+
+      // Re-prompt: the existing pod directory is reused and the lima
+      // instance is recreated.
+      await opencode.sessions.prompt({
+        sessionID: session.id,
+        text: "hello again",
+      });
+
+      // Verify the pod was restored
+      expect(fs.existsSync(sessionDir)).toBe(true);
+      expect(limaInstanceExists(session.id)).toBe(true);
+      expect(await waitForRunningLima(session.id)).toBe("Running");
+
+      // Clean up
+      await cleanup(session.id, [sessionDir, tempDir, bareDir]);
+    },
+  );
+
+  it(
     "runs shell commands within the session lima instance",
     { timeout: 120_000 },
     async () => {
