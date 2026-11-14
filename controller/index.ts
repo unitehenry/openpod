@@ -18,6 +18,7 @@ export async function registerController(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const props: any = (ev as any).properties ?? ev;
           const sessionID: string | undefined =
+            props.data?.sessionID ??
             props.sessionID ??
             props.id ??
             props.info?.id ??
