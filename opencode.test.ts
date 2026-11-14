@@ -344,17 +344,29 @@ describe("opencode", () => {
       // up the lima instance and the openpod directory.
       await opencode.sessions.remove({ sessionID: session.id });
 
-      let limaGone = false;
-      let dirGone = false;
-      for (let i = 0; i < 100; i++) {
-        limaGone = !limaInstanceExists(session.id);
-        dirGone = !fs.existsSync(sessionDir);
-        if (limaGone && dirGone) break;
-        await new Promise((r) => setTimeout(r, 100));
+      // Poll for pod removal with independent waits that run concurrently.
+      async function waitForPodRemoval(): Promise<{
+        limaRemoved: boolean;
+        dirRemoved: boolean;
+      }> {
+        async function waitFor(condition: () => boolean): Promise<boolean> {
+          for (let i = 0; i < 100; i++) {
+            if (condition()) return true;
+            await new Promise((r) => setTimeout(r, 100));
+          }
+          return condition();
+        }
+
+        const [limaRemoved, dirRemoved] = await Promise.all([
+          waitFor(() => !limaInstanceExists(session.id)),
+          waitFor(() => !fs.existsSync(sessionDir)),
+        ]);
+        return { limaRemoved, dirRemoved };
       }
 
-      expect(limaGone).toBe(true);
-      expect(dirGone).toBe(true);
+      const { limaRemoved, dirRemoved } = await waitForPodRemoval();
+      expect(limaRemoved).toBe(true);
+      expect(dirRemoved).toBe(true);
 
       // Clean up
       await cleanup(session.id, [sessionDir, tempDir, bareDir]);
