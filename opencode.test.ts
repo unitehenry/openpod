@@ -286,6 +286,82 @@ describe("opencode", () => {
   );
 
   it(
+    "should remove lima instance and openpod directory when the session is deleted",
+    { timeout: 180_000 },
+    async () => {
+      // Create a temp git repo with a remote origin
+      const tempDir = await mkdtemp(
+        path.join(os.tmpdir(), "openpod-e2e-delete-"),
+      );
+      const bareDir = await mkdtemp(
+        path.join(os.tmpdir(), "openpod-bare-delete-"),
+      );
+      execSync("git init --bare", { cwd: bareDir, stdio: "ignore" });
+      execSync("git init", { cwd: tempDir, stdio: "ignore" });
+      execSync(`git remote add origin ${bareDir}`, {
+        cwd: tempDir,
+        stdio: "ignore",
+      });
+
+      function limaInstanceExists(name: string): boolean {
+        try {
+          execSync(`limactl list ${name}`, { stdio: "ignore" });
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      const session = await opencode.sessions.create();
+      const sessionDir = path.join(openpodRoot, session.id);
+
+      await opencode.sessions.move({
+        sessionID: session.id,
+        directory: tempDir,
+      });
+
+      // Wait for the move to take effect
+      await new Promise((r) => setTimeout(r, 200));
+
+      // Prompt so the handler clones the project and creates the lima instance
+      await opencode.sessions.prompt({
+        sessionID: session.id,
+        text: "hello",
+      });
+
+      expect(fs.existsSync(sessionDir)).toBe(true);
+      expect(limaInstanceExists(session.id)).toBe(true);
+
+      // Wait for the prompt hook's async session.move() to land the session
+      // in the openpod directory before deleting it.
+      for (let i = 0; i < 50; i++) {
+        const current = await opencode.sessions.get({ sessionID: session.id });
+        if (current.location?.directory === sessionDir) break;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+
+      // Delete the session. The plugin's session.deleted handler should clean
+      // up the lima instance and the openpod directory.
+      await opencode.sessions.remove({ sessionID: session.id });
+
+      let limaGone = false;
+      let dirGone = false;
+      for (let i = 0; i < 100; i++) {
+        limaGone = !limaInstanceExists(session.id);
+        dirGone = !fs.existsSync(sessionDir);
+        if (limaGone && dirGone) break;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+
+      expect(limaGone).toBe(true);
+      expect(dirGone).toBe(true);
+
+      // Clean up
+      await cleanup(session.id, [sessionDir, tempDir, bareDir]);
+    },
+  );
+
+  it(
     "runs shell commands within the session lima instance",
     { timeout: 120_000 },
     async () => {
