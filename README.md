@@ -22,5 +22,5 @@
 - [x] Opencode shell command runs in lima instance (using opencode shell api)
 - [x] Opencode `clear-openpod` command is registered
 - [x] Create session -> prompt -> verify pod -> delete lima instance -> re-prompt -> verify pod
-- [ ] Opencode delete session removes lima instance and openpod directory
+- [x] Opencode delete session removes lima instance and openpod directory
 - [ ] Opencode `clear-openpod` removes directories, lima instances, and deletes openpod sessions
