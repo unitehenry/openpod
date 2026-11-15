@@ -1,9 +1,8 @@
 import type { OpenpodContext } from "../context";
-import { mkdir, rm } from "node:fs/promises";
+import { access, mkdir, rm } from "node:fs/promises";
 import * as path from "node:path";
 
 import { exec } from "../context/exec";
-import { exists } from "../context/fs";
 
 export type HandleParams = {
   ctx: OpenpodContext;
@@ -104,7 +103,15 @@ export async function handle(params: HandleParams): Promise<void> {
   );
 
   if (needsMove) {
-    if (await exists(target)) {
+    let targetExists = false;
+    try {
+      await access(target);
+      targetExists = true;
+    } catch {
+      // target does not exist
+    }
+
+    if (targetExists) {
       logger.log(`${target} already exists`);
       move(sessionId, target);
     } else {

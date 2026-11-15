@@ -1,8 +1,7 @@
-import { rm } from "node:fs/promises";
+import { access, rm } from "node:fs/promises";
 import * as path from "node:path";
 
 import { exec } from "./exec";
-import { exists } from "./fs";
 import type { Logger } from "./logger";
 
 export type Cleanup = {
@@ -27,12 +26,15 @@ export function initCleanup(openpodRoot: string, logger?: Logger): Cleanup {
 
   async function removePodDirectory(podDir: string): Promise<void> {
     try {
-      if (await exists(podDir)) {
-        await rm(podDir, { recursive: true, force: true });
-        log(`[cleanup] removed directory ${podDir}`);
-      } else {
-        log(`[cleanup] directory did not exist: ${podDir}`);
-      }
+      await access(podDir);
+    } catch {
+      log(`[cleanup] directory did not exist: ${podDir}`);
+      return;
+    }
+
+    try {
+      await rm(podDir, { recursive: true, force: true });
+      log(`[cleanup] removed directory ${podDir}`);
     } catch (err) {
       log(`[cleanup] failed to remove ${podDir}: ${err}`);
     }
