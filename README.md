@@ -9,7 +9,7 @@
 # TODO
 
 - end-to-end tests (using github action runner)
-- [x] make fs and exec operations async
+- make fs and exec operations async
 - `await opencode?.[Symbol.asyncDispose]?.();`
 - installation instructions (readme)
 - check if ubuntu and no limactl, then auto install
