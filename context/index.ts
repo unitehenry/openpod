@@ -9,6 +9,7 @@ export type OpenpodContext = {
   logger: Logger;
   openpodRoot: string;
   cleanup: Cleanup;
+  exec: typeof exec;
 };
 
 export async function init(): Promise<OpenpodContext> {
@@ -35,5 +36,5 @@ export async function init(): Promise<OpenpodContext> {
     );
   }
 
-  return { logger, openpodRoot, cleanup };
+  return { logger, openpodRoot, cleanup, exec };
 }
