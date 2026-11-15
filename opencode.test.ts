@@ -374,6 +374,113 @@ describe("opencode", () => {
   );
 
   it(
+    "should remove directories, lima instances, and openpod sessions when clear-openpod runs",
+    { timeout: 180_000 },
+    async () => {
+      // Create a temp git repo with a remote origin
+      const tempDir = await mkdtemp(
+        path.join(os.tmpdir(), "openpod-e2e-clear-"),
+      );
+      const bareDir = await mkdtemp(
+        path.join(os.tmpdir(), "openpod-bare-clear-"),
+      );
+      execSync("git init --bare", { cwd: bareDir, stdio: "ignore" });
+      execSync("git init", { cwd: tempDir, stdio: "ignore" });
+      execSync(`git remote add origin ${bareDir}`, {
+        cwd: tempDir,
+        stdio: "ignore",
+      });
+
+      function limaInstanceExists(name: string): boolean {
+        try {
+          execSync(`limactl list ${name}`, { stdio: "ignore" });
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      async function sessionExists(sessionID: string): Promise<boolean> {
+        try {
+          await opencode.sessions.get({ sessionID });
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      const session = await opencode.sessions.create();
+      const sessionDir = path.join(openpodRoot, session.id);
+
+      await opencode.sessions.move({
+        sessionID: session.id,
+        directory: tempDir,
+      });
+
+      // Wait for the move to take effect
+      await new Promise((r) => setTimeout(r, 200));
+
+      // Prompt so the handler clones the project and creates the lima instance
+      await opencode.sessions.prompt({
+        sessionID: session.id,
+        text: "hello",
+      });
+
+      expect(fs.existsSync(sessionDir)).toBe(true);
+      expect(limaInstanceExists(session.id)).toBe(true);
+
+      // Wait for the prompt hook's async session.move() to land the session
+      // in the openpod directory before clearing it.
+      for (let i = 0; i < 50; i++) {
+        const current = await opencode.sessions.get({ sessionID: session.id });
+        if (current.location?.directory === sessionDir) break;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+
+      // Run the clear-openpod command from the session. The command should
+      // stop and delete every lima instance, remove every openpod directory,
+      // and delete the openpod sessions.
+      await opencode.sessions.command({
+        sessionID: session.id,
+        name: "clear-openpod",
+        text: "",
+      });
+
+      // Poll for cleanup with independent waits that run concurrently.
+      async function waitForClear(): Promise<{
+        limaRemoved: boolean;
+        dirRemoved: boolean;
+        sessionRemoved: boolean;
+      }> {
+        async function waitFor(
+          condition: () => boolean | Promise<boolean>,
+        ): Promise<boolean> {
+          for (let i = 0; i < 100; i++) {
+            if (await condition()) return true;
+            await new Promise((r) => setTimeout(r, 100));
+          }
+          return condition();
+        }
+
+        const [limaRemoved, dirRemoved, sessionRemoved] = await Promise.all([
+          waitFor(() => !limaInstanceExists(session.id)),
+          waitFor(() => !fs.existsSync(sessionDir)),
+          waitFor(async () => !(await sessionExists(session.id))),
+        ]);
+        return { limaRemoved, dirRemoved, sessionRemoved };
+      }
+
+      const { limaRemoved, dirRemoved, sessionRemoved } = await waitForClear();
+      expect(limaRemoved).toBe(true);
+      expect(dirRemoved).toBe(true);
+      expect(sessionRemoved).toBe(true);
+
+      // Clean up
+      await cleanup(session.id, [sessionDir, tempDir, bareDir]);
+    },
+  );
+
+  it(
     "runs shell commands within the session lima instance",
     { timeout: 120_000 },
     async () => {
