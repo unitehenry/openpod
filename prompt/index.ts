@@ -10,7 +10,7 @@ export async function registerPrompt(
 ): Promise<void> {
   const { logger } = deps;
 
-  await logger.log("registering prompt");
+  void logger.log("registering prompt");
 
   await ctx.session.hook("prompt", async (event) => {
     const session = await ctx.session.get({ sessionID: event.sessionID });

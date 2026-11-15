@@ -49,7 +49,7 @@ export async function handle(params: HandleParams): Promise<void> {
     sessionId: string,
     target: string,
   ): Promise<void> {
-    await logger.log(
+    void logger.log(
       `creating lima instance ${sessionId} (mount-only ${target}:w)`,
     );
     const createResult = await exec("limactl", [
@@ -60,15 +60,15 @@ export async function handle(params: HandleParams): Promise<void> {
       "--yes",
     ]);
     if (createResult.status !== 0) {
-      await logger.log(`limactl create exited with ${createResult.status}`);
+      void logger.log(`limactl create exited with ${createResult.status}`);
     }
   }
 
   async function startLimaInstance(sessionId: string): Promise<void> {
-    await logger.log(`starting lima instance ${sessionId}`);
+    void logger.log(`starting lima instance ${sessionId}`);
     const startResult = await exec("limactl", ["start", sessionId, "--yes"]);
     if (startResult.status !== 0) {
-      await logger.log(`limactl start exited with ${startResult.status}`);
+      void logger.log(`limactl start exited with ${startResult.status}`);
     }
   }
 
@@ -79,7 +79,7 @@ export async function handle(params: HandleParams): Promise<void> {
     await mkdir(openpodRoot, { recursive: true });
     const result = await exec("git", ["clone", originUrl, target]);
     if (result.status !== 0) {
-      await logger.log(`git clone failed with exit code ${result.status}`);
+      void logger.log(`git clone failed with exit code ${result.status}`);
       try {
         await rm(target, { recursive: true, force: true });
       } catch {
@@ -91,41 +91,41 @@ export async function handle(params: HandleParams): Promise<void> {
   }
 
   const gitEnabled = await isGitEnabled(dir);
-  await logger.log(`session ${sessionId} prompt - gitEnabled: ${gitEnabled}`);
+  void logger.log(`session ${sessionId} prompt - gitEnabled: ${gitEnabled}`);
 
   if (!gitEnabled) {
-    await logger.log(`git is not enabled`);
+    void logger.log(`git is not enabled`);
     return;
   }
 
   const target = path.join(openpodRoot, sessionId);
   const needsMove = dir !== target;
 
-  await logger.log(
+  void logger.log(
     `needs move for project dir ${dir}? ${needsMove} (target=${target})`,
   );
 
   if (needsMove) {
     if (await exists(target)) {
-      await logger.log(`${target} already exists`);
+      void logger.log(`${target} already exists`);
       move(sessionId, target);
     } else {
       const originUrl = await getOriginUrl(dir);
       if (!originUrl) {
-        await logger.log(`no origin remote configured`);
+        void logger.log(`no origin remote configured`);
         return;
       }
 
-      await logger.log(`cloning from origin ${originUrl} -> ${target}`);
+      void logger.log(`cloning from origin ${originUrl} -> ${target}`);
       if (!(await cloneProject(originUrl, target))) {
         return;
       }
 
-      await logger.log(`clone complete, moving session to ${target}`);
+      void logger.log(`clone complete, moving session to ${target}`);
       move(sessionId, target);
     }
   } else {
-    await logger.log(`already in ${target} directory`);
+    void logger.log(`already in ${target} directory`);
   }
 
   if (!(await limaInstanceExists(sessionId))) {
