@@ -47,7 +47,10 @@ describe("opencode", () => {
   });
 
   afterEach(async () => {
-    await opencode?.[Symbol.asyncDispose]?.();
+    // `await using` registers opencode for disposal when this callback's scope
+    // ends, which calls opencode[Symbol.asyncDispose]() for us. It is a no-op
+    // if opencode is undefined (e.g. beforeEach failed before creating it).
+    await using _close = opencode;
   });
 
   it("registers openpod plugin with opencode", async () => {
