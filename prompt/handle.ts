@@ -2,8 +2,6 @@ import type { OpenpodContext } from "../context";
 import { access, mkdir, rm } from "node:fs/promises";
 import * as path from "node:path";
 
-import { exec } from "../context/exec";
-
 export type HandleParams = {
   ctx: OpenpodContext;
   sessionId: string;
@@ -13,7 +11,7 @@ export type HandleParams = {
 
 export async function handle(params: HandleParams): Promise<void> {
   const { ctx: deps, sessionId, dir, move } = params;
-  const { logger, openpodRoot } = deps;
+  const { logger, openpodRoot, exec } = deps;
 
   async function isGitEnabled(dir: string): Promise<boolean> {
     const result = await exec("git", [
@@ -87,6 +85,15 @@ export async function handle(params: HandleParams): Promise<void> {
     return true;
   }
 
+  async function hasTarget(target: string): Promise<boolean> {
+    try {
+      await access(target);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   const gitEnabled = await isGitEnabled(dir);
   logger.log(`session ${sessionId} prompt - gitEnabled: ${gitEnabled}`);
 
@@ -103,13 +110,7 @@ export async function handle(params: HandleParams): Promise<void> {
   );
 
   if (needsMove) {
-    let targetExists = false;
-    try {
-      await access(target);
-      targetExists = true;
-    } catch {
-      // target does not exist
-    }
+    const targetExists = await hasTarget(target);
 
     if (targetExists) {
       logger.log(`${target} already exists`);
