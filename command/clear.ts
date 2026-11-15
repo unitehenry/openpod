@@ -5,11 +5,11 @@ import { exists } from "../context/fs";
 
 export async function clear(deps: OpenpodContext): Promise<void> {
   const { logger, openpodRoot } = deps;
-  void logger.log("[clear] starting full openpod cleanup");
+  logger.log("[clear] starting full openpod cleanup");
 
   try {
     if (!(await exists(openpodRoot))) {
-      void logger.log("[clear] openpod root does not exist");
+      logger.log("[clear] openpod root does not exist");
       return;
     }
 
@@ -24,8 +24,8 @@ export async function clear(deps: OpenpodContext): Promise<void> {
 
     // Remove the root directory entirely (includes .log etc.)
     await rm(openpodRoot, { recursive: true, force: true });
-    void logger.log(`[clear] removed entire directory ${openpodRoot}`);
+    logger.log(`[clear] removed entire directory ${openpodRoot}`);
   } catch (err) {
-    void logger.log(`[clear] error during cleanup: ${err}`);
+    logger.log(`[clear] error during cleanup: ${err}`);
   }
 }

@@ -9,7 +9,7 @@ export function wrap(
   function getLimaName(dir: string): string | null {
     const { logger, openpodRoot } = deps;
     try {
-      void logger.log(`get lima name for ${openpodRoot} ${dir}`);
+      logger.log(`get lima name for ${openpodRoot} ${dir}`);
       const rel = path.relative(openpodRoot, dir);
       if (rel.startsWith("..") || path.isAbsolute(rel)) {
         return null;
@@ -30,9 +30,7 @@ export function wrap(
   const escapedCmd = command.replace(/'/g, "'\\''");
   const wrapped = `limactl shell --preserve-env --workdir='${escapedCwd}' ${limaName} bash -c '${escapedCmd}'`;
 
-  void deps.logger.log(
-    `redirected shell command for lima ${limaName} (cwd=${cwd})`,
-  );
+  deps.logger.log(`redirected shell command for lima ${limaName} (cwd=${cwd})`);
 
   return wrapped;
 }

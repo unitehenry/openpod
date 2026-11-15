@@ -11,7 +11,7 @@ export type Cleanup = {
 
 export function initCleanup(openpodRoot: string, logger?: Logger): Cleanup {
   const log = (message: string, level?: string): void => {
-    void logger?.log?.(message, level);
+    logger?.log?.(message, level);
   };
 
   async function stopLimaInstance(limaName: string): Promise<void> {

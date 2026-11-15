@@ -10,7 +10,7 @@ export async function registerShell(
 ): Promise<void> {
   const { logger } = deps;
 
-  void logger.log("registering create.before");
+  logger.log("registering create.before");
 
   await ctx.shell.hook("create.before", async (event) => {
     event.command = wrap(deps, event.cwd, event.command);

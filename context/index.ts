@@ -26,7 +26,7 @@ export async function init(): Promise<OpenpodContext> {
   }
 
   if (!(await isCommandAvailable("limactl"))) {
-    void logger.log(
+    logger.log(
       "`limactl` is not installed. Lima is required for openpod. See https://lima-vm.io/",
       "error",
     );
