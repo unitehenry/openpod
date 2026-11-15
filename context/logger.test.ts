@@ -32,17 +32,17 @@ describe("logger", () => {
     expect(typeof logger.log).toBe("function");
   });
 
-  it("creates .log directory and log file on first log", () => {
+  it("creates .log directory and log file on first log", async () => {
     const logger = initLogger(tempRoot);
-    logger.log("test message");
+    await logger.log("test message");
 
     expect(fs.existsSync(path.join(tempRoot, ".log"))).toBe(true);
     expect(fs.existsSync(logFile)).toBe(true);
   });
 
-  it("appends log entry with correct format", () => {
+  it("appends log entry with correct format", async () => {
     const logger = initLogger(tempRoot);
-    logger.log("hello world");
+    await logger.log("hello world");
 
     const content = fs.readFileSync(logFile, "utf8");
     expect(content).toContain("[openpod] hello world");
@@ -51,18 +51,18 @@ describe("logger", () => {
     );
   });
 
-  it("includes level prefix for non-info levels", () => {
+  it("includes level prefix for non-info levels", async () => {
     const logger = initLogger(tempRoot);
-    logger.log("error happened", "error");
+    await logger.log("error happened", "error");
 
     const content = fs.readFileSync(logFile, "utf8");
     expect(content).toContain("[error] error happened");
   });
 
-  it("appends multiple logs", () => {
+  it("appends multiple logs", async () => {
     const logger = initLogger(tempRoot);
-    logger.log("first");
-    logger.log("second");
+    await logger.log("first");
+    await logger.log("second");
 
     const content = fs.readFileSync(logFile, "utf8");
     expect(content).toContain("first");

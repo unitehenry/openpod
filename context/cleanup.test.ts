@@ -2,27 +2,24 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { spawnSync } from "node:child_process";
 
 import { initCleanup } from "./cleanup";
+import { exec } from "./exec";
 
-vi.mock("node:child_process", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("node:child_process")>();
-  return {
-    ...actual,
-    spawnSync: vi.fn(),
-  };
-});
+vi.mock("./exec", () => ({
+  exec: vi.fn(),
+}));
 
 describe("cleanup", () => {
   let tempRoot: string;
+  const execMock = vi.mocked(exec);
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (
-      spawnSync as unknown as { mockReturnValue: (val: unknown) => void }
-    ).mockReturnValue({
+    execMock.mockResolvedValue({
       status: 0,
+      stdout: "",
+      stderr: "",
     });
     tempRoot = path.join(
       os.tmpdir(),
@@ -54,7 +51,7 @@ describe("cleanup", () => {
     // @ts-expect-error testing runtime guard
     await cleanup.execute(undefined);
 
-    expect(spawnSync).not.toHaveBeenCalled();
+    expect(execMock).not.toHaveBeenCalled();
   });
 
   it("attempts lima stop/delete", async () => {
@@ -62,20 +59,16 @@ describe("cleanup", () => {
     const sessionID = "test-session";
     await cleanup.execute(sessionID);
 
-    expect(spawnSync).toHaveBeenCalledWith(
-      "limactl",
-      ["stop", sessionID, "--force"],
-      {
-        stdio: "ignore",
-      },
-    );
-    expect(spawnSync).toHaveBeenCalledWith(
-      "limactl",
-      ["delete", sessionID, "--force"],
-      {
-        stdio: "ignore",
-      },
-    );
+    expect(execMock).toHaveBeenCalledWith("limactl", [
+      "stop",
+      sessionID,
+      "--force",
+    ]);
+    expect(execMock).toHaveBeenCalledWith("limactl", [
+      "delete",
+      sessionID,
+      "--force",
+    ]);
   });
 
   it("removes existing pod directory", async () => {

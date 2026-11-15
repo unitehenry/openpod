@@ -1,7 +1,8 @@
-import * as fs from "node:fs";
-import { spawnSync } from "node:child_process";
+import { rm } from "node:fs/promises";
 import * as path from "node:path";
 
+import { exec } from "./exec";
+import { exists } from "./fs";
 import type { Logger } from "./logger";
 
 export type Cleanup = {
@@ -9,42 +10,33 @@ export type Cleanup = {
 };
 
 export function initCleanup(openpodRoot: string, logger?: Logger): Cleanup {
-  const log = (message: string, level?: string) =>
-    logger?.log?.(message, level);
+  const log = async (message: string, level?: string): Promise<void> => {
+    await logger?.log?.(message, level);
+  };
 
-  function stopLimaInstance(limaName: string): void {
+  async function stopLimaInstance(limaName: string): Promise<void> {
     // best-effort stop (ignore errors)
-    try {
-      spawnSync("limactl", ["stop", limaName, "--force"], { stdio: "ignore" });
-      log(`[cleanup] stopped ${limaName} (if running)`);
-    } catch {
-      // ignore
-    }
+    await exec("limactl", ["stop", limaName, "--force"]);
+    await log(`[cleanup] stopped ${limaName} (if running)`);
   }
 
-  function deleteLimaInstance(limaName: string): void {
-    // delete the lima instance
-    try {
-      const result = spawnSync("limactl", ["delete", limaName, "--force"], {
-        stdio: "ignore",
-      });
-      log(`[cleanup] limactl delete ${limaName} exited with ${result.status}`);
-    } catch (err) {
-      log(`[cleanup] limactl delete error for ${limaName}: ${err}`);
-    }
+  async function deleteLimaInstance(limaName: string): Promise<void> {
+    const result = await exec("limactl", ["delete", limaName, "--force"]);
+    await log(
+      `[cleanup] limactl delete ${limaName} exited with ${result.status}`,
+    );
   }
 
-  function removePodDirectory(podDir: string): void {
-    // remove the openpod directory
+  async function removePodDirectory(podDir: string): Promise<void> {
     try {
-      if (fs.existsSync(podDir)) {
-        fs.rmSync(podDir, { recursive: true, force: true });
-        log(`[cleanup] removed directory ${podDir}`);
+      if (await exists(podDir)) {
+        await rm(podDir, { recursive: true, force: true });
+        await log(`[cleanup] removed directory ${podDir}`);
       } else {
-        log(`[cleanup] directory did not exist: ${podDir}`);
+        await log(`[cleanup] directory did not exist: ${podDir}`);
       }
     } catch (err) {
-      log(`[cleanup] failed to remove ${podDir}: ${err}`);
+      await log(`[cleanup] failed to remove ${podDir}: ${err}`);
     }
   }
 
@@ -54,11 +46,11 @@ export function initCleanup(openpodRoot: string, logger?: Logger): Cleanup {
     const limaName = sessionID;
     const podDir = path.join(openpodRoot, sessionID);
 
-    log(`[cleanup] starting for ${sessionID}`);
+    await log(`[cleanup] starting for ${sessionID}`);
 
-    stopLimaInstance(limaName);
-    deleteLimaInstance(limaName);
-    removePodDirectory(podDir);
+    await stopLimaInstance(limaName);
+    await deleteLimaInstance(limaName);
+    await removePodDirectory(podDir);
   }
 
   return { execute };
