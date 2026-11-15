@@ -5,6 +5,9 @@ import { exec } from "./exec";
 import { initLogger, type Logger } from "./logger";
 import { initCleanup, type Cleanup } from "./cleanup";
 
+const LIMA_URL = "https://lima-vm.io/";
+const LIMA_MISSING_MESSAGE = `\`limactl\` is not installed. Lima is required for openpod. See ${LIMA_URL}`;
+
 export type OpenpodContext = {
   logger: Logger;
   openpodRoot: string;
@@ -28,13 +31,8 @@ export async function init(): Promise<OpenpodContext> {
 
   const isLimaInstalled = await isCommandAvailable("limactl");
   if (!isLimaInstalled) {
-    logger.log(
-      "`limactl` is not installed. Lima is required for openpod. See https://lima-vm.io/",
-      "error",
-    );
-    throw new Error(
-      "`limactl` is not installed. Lima is required for openpod. See https://lima-vm.io/",
-    );
+    logger.log(LIMA_MISSING_MESSAGE, "error");
+    throw new Error(LIMA_MISSING_MESSAGE);
   }
 
   return { logger, openpodRoot, cleanup, exec };
