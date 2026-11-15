@@ -1,18 +1,18 @@
 import type { OpenpodContext } from "../context";
-import { readdir, rm } from "node:fs/promises";
-
-import { exists } from "../context/fs";
+import { access, readdir, rm } from "node:fs/promises";
 
 export async function clear(deps: OpenpodContext): Promise<void> {
   const { logger, openpodRoot } = deps;
   logger.log("[clear] starting full openpod cleanup");
 
   try {
-    if (!(await exists(openpodRoot))) {
-      logger.log("[clear] openpod root does not exist");
-      return;
-    }
+    await access(openpodRoot);
+  } catch {
+    logger.log("[clear] openpod root does not exist");
+    return;
+  }
 
+  try {
     // Clean up each session/pod individually (stops + deletes lima + removes dir)
     const entries = await readdir(openpodRoot, { withFileTypes: true });
     for (const entry of entries) {
