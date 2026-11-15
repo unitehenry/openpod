@@ -14,7 +14,7 @@ export async function registerCommand(
   deps: OpenpodContext,
 ): Promise<void> {
   const { logger } = deps;
-  logger.log("registering commands");
+  await logger.log("registering commands");
 
   await ctx.command.transform((editor) => {
     editor.add({

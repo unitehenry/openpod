@@ -1,7 +1,7 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { execSync } from "node:child_process";
 
+import { exec } from "./exec";
 import { initLogger, type Logger } from "./logger";
 import { initCleanup, type Cleanup } from "./cleanup";
 
@@ -17,24 +17,16 @@ export async function init(): Promise<OpenpodContext> {
   const logger = initLogger(openpodRoot);
   const cleanup = initCleanup(openpodRoot, logger);
 
-  function isCommandAvailable(command: string): boolean {
-    try {
-      if (process.platform === "win32") {
-        execSync(`where ${command}`, { stdio: "ignore" });
-      } else {
-        execSync(`command -v ${command}`, {
-          stdio: "ignore",
-          shell: "/bin/sh",
-        });
-      }
-      return true;
-    } catch {
-      return false;
-    }
+  async function isCommandAvailable(command: string): Promise<boolean> {
+    const result =
+      process.platform === "win32"
+        ? await exec("where", [command])
+        : await exec("/bin/sh", ["-c", `command -v ${command}`]);
+    return result.status === 0;
   }
 
-  if (!isCommandAvailable("limactl")) {
-    logger.log(
+  if (!(await isCommandAvailable("limactl"))) {
+    await logger.log(
       "`limactl` is not installed. Lima is required for openpod. See https://lima-vm.io/",
       "error",
     );

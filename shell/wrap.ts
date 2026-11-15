@@ -1,15 +1,15 @@
 import type { OpenpodContext } from "../context";
 import * as path from "node:path";
 
-export function wrap(
+export async function wrap(
   deps: OpenpodContext,
   cwd: string,
   command: string,
-): string {
-  function getLimaName(dir: string): string | null {
+): Promise<string> {
+  async function getLimaName(dir: string): Promise<string | null> {
     const { logger, openpodRoot } = deps;
     try {
-      logger.log(`get lima name for ${openpodRoot} ${dir}`);
+      await logger.log(`get lima name for ${openpodRoot} ${dir}`);
       const rel = path.relative(openpodRoot, dir);
       if (rel.startsWith("..") || path.isAbsolute(rel)) {
         return null;
@@ -21,7 +21,7 @@ export function wrap(
     }
   }
 
-  const limaName = getLimaName(cwd);
+  const limaName = await getLimaName(cwd);
   if (!limaName) {
     return command;
   }
@@ -30,7 +30,9 @@ export function wrap(
   const escapedCmd = command.replace(/'/g, "'\\''");
   const wrapped = `limactl shell --preserve-env --workdir='${escapedCwd}' ${limaName} bash -c '${escapedCmd}'`;
 
-  deps.logger.log(`redirected shell command for lima ${limaName} (cwd=${cwd})`);
+  await deps.logger.log(
+    `redirected shell command for lima ${limaName} (cwd=${cwd})`,
+  );
 
   return wrapped;
 }

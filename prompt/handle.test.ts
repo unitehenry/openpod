@@ -10,37 +10,40 @@ import {
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { spawnSync } from "node:child_process";
 
 import type { OpenpodContext } from "../context";
 import { init } from "../context";
+import { exec } from "../context/exec";
 import { handle } from "./handle";
 
-vi.mock("node:child_process", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("node:child_process")>();
-  return {
-    ...actual,
-    spawnSync: vi.fn(),
-  };
-});
+vi.mock("../context/exec", () => ({
+  exec: vi.fn(),
+}));
 
 describe("handle", () => {
   let mockMove: ReturnType<
     typeof vi.fn<(sessionId: string, directory: string) => void>
   >;
-  let spawn: ReturnType<typeof vi.fn>;
   let ctx: OpenpodContext;
   let baseCtx: OpenpodContext;
+  const execMock = vi.mocked(exec);
 
   beforeAll(async () => {
+    execMock.mockResolvedValue({
+      status: 0,
+      stdout: "",
+      stderr: "",
+    });
     baseCtx = await init();
   });
 
   beforeEach(() => {
     vi.clearAllMocks();
-    spawn = spawnSync as unknown as ReturnType<typeof vi.fn>;
-    spawn.mockReturnValue({
+    execMock.mockReset();
+    execMock.mockResolvedValue({
       status: 0,
+      stdout: "",
+      stderr: "",
     });
 
     const tempRoot = path.join(
@@ -66,9 +69,9 @@ describe("handle", () => {
     }
   });
 
-  it("returns a handle function that can be called", () => {
+  it("returns a handle function that can be called", async () => {
     // just ensure no throw on basic call
-    handle({
+    await handle({
       ctx,
       sessionId: "test",
       dir: "/tmp/some",
@@ -76,10 +79,10 @@ describe("handle", () => {
     });
   });
 
-  it("returns early if not git enabled", () => {
-    spawn.mockReturnValue({ status: 1 });
+  it("returns early if not git enabled", async () => {
+    execMock.mockResolvedValue({ status: 1, stdout: "", stderr: "" });
 
-    handle({
+    await handle({
       ctx,
       sessionId: "sess1",
       dir: "/project/dir",
@@ -87,184 +90,182 @@ describe("handle", () => {
     });
 
     expect(mockMove).not.toHaveBeenCalled();
-    expect(spawnSync).toHaveBeenCalledWith(
-      "git",
-      ["-C", "/project/dir", "rev-parse", "--is-inside-work-tree"],
-      { stdio: "ignore" },
-    );
+    expect(execMock).toHaveBeenCalledWith("git", [
+      "-C",
+      "/project/dir",
+      "rev-parse",
+      "--is-inside-work-tree",
+    ]);
   });
 
-  it("returns early for invalid git (no origin)", () => {
-    spawn
-      .mockReturnValueOnce({ status: 0 }) // isGitEnabled
-      .mockReturnValueOnce({ status: 1, stdout: "" }); // getOriginUrl
+  it("returns early for invalid git (no origin)", async () => {
+    execMock
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }) // isGitEnabled
+      .mockResolvedValueOnce({ status: 1, stdout: "", stderr: "" }); // getOriginUrl
 
     const dir = "/project/dir";
-    handle({ ctx, sessionId: "sess1", dir, move: mockMove });
+    await handle({ ctx, sessionId: "sess1", dir, move: mockMove });
 
     expect(mockMove).not.toHaveBeenCalled();
-    expect(spawnSync).toHaveBeenCalledWith(
+    expect(execMock).toHaveBeenCalledWith(
       "git",
       ["-C", dir, "remote", "get-url", "origin"],
-      {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-      },
+      { encoding: "utf8" },
     );
   });
 
-  it("clones project and moves when needs move and target does not exist", () => {
+  it("clones project and moves when needs move and target does not exist", async () => {
     const sessionId = "clone-sess";
     const dir = "/real/project";
     const target = path.join(ctx.openpodRoot, sessionId);
     const origin = "https://example.com/repo.git";
 
-    spawn
-      .mockReturnValueOnce({ status: 0 }) // isGit
-      .mockReturnValueOnce({ status: 0, stdout: origin + "\n" }) // getOrigin
-      .mockReturnValueOnce({ status: 0 }) // clone git
-      .mockReturnValueOnce({ status: 1 }) // lima list (not exists)
-      .mockReturnValueOnce({ status: 0 }) // create lima
-      .mockReturnValueOnce({ status: 0 }); // start lima
+    execMock
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }) // isGit
+      .mockResolvedValueOnce({
+        status: 0,
+        stdout: origin + "\n",
+        stderr: "",
+      }) // getOrigin
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }) // clone git
+      .mockResolvedValueOnce({ status: 1, stdout: "", stderr: "" }) // lima list (not exists)
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }) // create lima
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }); // start lima
 
-    handle({ ctx, sessionId, dir, move: mockMove });
+    await handle({ ctx, sessionId, dir, move: mockMove });
 
-    expect(spawnSync).toHaveBeenCalledWith("git", ["clone", origin, target]);
+    expect(execMock).toHaveBeenCalledWith("git", ["clone", origin, target]);
     expect(mockMove).toHaveBeenCalledWith(sessionId, target);
 
     // lima create called
-    expect(spawnSync).toHaveBeenCalledWith(
-      "limactl",
-      [
-        "create",
-        `--name=${sessionId}`,
-        `--mount-only=${target}:w`,
-        "template:default",
-        "--yes",
-      ],
-      { stdio: "ignore" },
-    );
+    expect(execMock).toHaveBeenCalledWith("limactl", [
+      "create",
+      `--name=${sessionId}`,
+      `--mount-only=${target}:w`,
+      "template:default",
+      "--yes",
+    ]);
     // start
-    expect(spawnSync).toHaveBeenCalledWith(
-      "limactl",
-      ["start", sessionId, "--yes"],
-      { stdio: "ignore" },
-    );
+    expect(execMock).toHaveBeenCalledWith("limactl", [
+      "start",
+      sessionId,
+      "--yes",
+    ]);
   });
 
-  it("moves session when target already exists (no clone)", () => {
+  it("moves session when target already exists (no clone)", async () => {
     const sessionId = "existing";
     const dir = "/other/location";
     const target = path.join(ctx.openpodRoot, sessionId);
     fs.mkdirSync(target, { recursive: true });
 
-    spawn
-      .mockReturnValueOnce({ status: 0 }) // is git
-      .mockReturnValueOnce({ status: 1 }) // lima not
-      .mockReturnValueOnce({ status: 0 }) // create
-      .mockReturnValueOnce({ status: 0 }); // start
+    execMock
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }) // is git
+      .mockResolvedValueOnce({ status: 1, stdout: "", stderr: "" }) // lima not
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }) // create
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }); // start
 
-    handle({ ctx, sessionId, dir, move: mockMove });
+    await handle({ ctx, sessionId, dir, move: mockMove });
 
     expect(mockMove).toHaveBeenCalledWith(sessionId, target);
-    expect(spawnSync).not.toHaveBeenCalledWith("git", [
+    expect(execMock).not.toHaveBeenCalledWith("git", [
       "clone",
       expect.anything(),
       expect.anything(),
     ]);
   });
 
-  it("does not move when already at target dir", () => {
+  it("does not move when already at target dir", async () => {
     const sessionId = "same";
     const target = path.join(ctx.openpodRoot, sessionId);
     fs.mkdirSync(target, { recursive: true });
 
-    spawn
-      .mockReturnValueOnce({ status: 0 }) // git
-      .mockReturnValueOnce({ status: 1 }) // lima not exist
-      .mockReturnValueOnce({ status: 0 })
-      .mockReturnValueOnce({ status: 0 });
+    execMock
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }) // git
+      .mockResolvedValueOnce({ status: 1, stdout: "", stderr: "" }) // lima not exist
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" })
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" });
 
-    handle({ ctx, sessionId, dir: target, move: mockMove });
+    await handle({ ctx, sessionId, dir: target, move: mockMove });
 
     expect(mockMove).not.toHaveBeenCalled();
   });
 
-  it("skips create if lima instance already exists", () => {
+  it("skips create if lima instance already exists", async () => {
     const sessionId = "has-lima";
     const dir = path.join(ctx.openpodRoot, sessionId);
     fs.mkdirSync(dir, { recursive: true });
 
-    spawn
-      .mockReturnValueOnce({ status: 0 }) // git
-      .mockReturnValueOnce({ status: 0 }) // lima exists (list status 0)
-      .mockReturnValueOnce({ status: 0 }); // start only
+    execMock
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }) // git
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }) // lima exists
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }); // start only
 
-    handle({ ctx, sessionId, dir, move: mockMove });
+    await handle({ ctx, sessionId, dir, move: mockMove });
 
-    expect(spawnSync).not.toHaveBeenCalledWith(
+    expect(execMock).not.toHaveBeenCalledWith(
       "limactl",
       expect.arrayContaining(["create"]),
     );
-    expect(spawnSync).toHaveBeenCalledWith(
-      "limactl",
-      ["start", sessionId, "--yes"],
-      { stdio: "ignore" },
-    );
+    expect(execMock).toHaveBeenCalledWith("limactl", [
+      "start",
+      sessionId,
+      "--yes",
+    ]);
   });
 
-  it("handles lima create failure but continues to start", () => {
+  it("handles lima create failure but continues to start", async () => {
     const sessionId = "fail-create";
     const dir = "/proj";
 
-    spawn
-      .mockReturnValueOnce({ status: 0 }) // git
-      .mockReturnValueOnce({ status: 0, stdout: "url\n" }) // origin
-      .mockReturnValueOnce({ status: 0 }) // clone
-      .mockReturnValueOnce({ status: 1 }) // lima not
-      .mockReturnValueOnce({ status: 42 }) // create fails
-      .mockReturnValueOnce({ status: 0 }); // start succeeds
+    execMock
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }) // git
+      .mockResolvedValueOnce({ status: 0, stdout: "url\n", stderr: "" }) // origin
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }) // clone
+      .mockResolvedValueOnce({ status: 1, stdout: "", stderr: "" }) // lima not
+      .mockResolvedValueOnce({ status: 42, stdout: "", stderr: "" }) // create fails
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }); // start succeeds
 
-    handle({ ctx, sessionId, dir, move: mockMove });
+    await handle({ ctx, sessionId, dir, move: mockMove });
 
-    expect(spawnSync).toHaveBeenCalledWith(
-      "limactl",
-      ["start", sessionId, "--yes"],
-      { stdio: "ignore" },
-    );
+    expect(execMock).toHaveBeenCalledWith("limactl", [
+      "start",
+      sessionId,
+      "--yes",
+    ]);
   });
 
-  it("handles lima start failure (does not throw)", () => {
+  it("handles lima start failure (does not throw)", async () => {
     const sessionId = "fail-start";
     const dir = path.join(ctx.openpodRoot, sessionId);
     fs.mkdirSync(dir, { recursive: true });
 
-    spawn
-      .mockReturnValueOnce({ status: 0 }) // git
-      .mockReturnValueOnce({ status: 0 }) // lima exists
-      .mockReturnValueOnce({ status: 1 }); // start fails
+    execMock
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }) // git
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }) // lima exists
+      .mockResolvedValueOnce({ status: 1, stdout: "", stderr: "" }); // start fails
 
-    handle({ ctx, sessionId, dir, move: mockMove });
+    await handle({ ctx, sessionId, dir, move: mockMove });
   });
 
-  it("handles git clone failure and does not move", () => {
+  it("handles git clone failure and does not move", async () => {
     const sessionId = "clone-fail";
     const dir = "/proj";
     const origin = "https://bad";
 
-    spawn
-      .mockReturnValueOnce({ status: 0 }) // git
-      .mockReturnValueOnce({ status: 0, stdout: origin + "\n" })
-      .mockReturnValueOnce({ status: 1 }); // clone fails -- no more calls
+    execMock
+      .mockResolvedValueOnce({ status: 0, stdout: "", stderr: "" }) // git
+      .mockResolvedValueOnce({
+        status: 0,
+        stdout: origin + "\n",
+        stderr: "",
+      })
+      .mockResolvedValueOnce({ status: 1, stdout: "", stderr: "" }); // clone fails
 
-    handle({ ctx, sessionId, dir, move: mockMove });
+    await handle({ ctx, sessionId, dir, move: mockMove });
 
     expect(mockMove).not.toHaveBeenCalled();
     // no lima/start since returned early
-    expect(spawnSync).not.toHaveBeenCalledWith(
-      expect.stringContaining("limactl"),
-      expect.any(Array),
-      expect.any(Object),
-    );
+    expect(execMock).not.toHaveBeenCalledWith("limactl", expect.any(Array));
   });
 });
