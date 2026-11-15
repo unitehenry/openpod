@@ -32,7 +32,7 @@ export async function registerController(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       if (err?.name !== "AbortError") {
-        void deps.logger.log(`event subscription error: ${err}`);
+        deps.logger.log(`event subscription error: ${err}`);
       }
     }
   })();
