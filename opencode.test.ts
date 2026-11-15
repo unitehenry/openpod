@@ -1,12 +1,23 @@
 import { OpenCode } from "@opencode/sdk";
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { execSync } from "node:child_process";
-import { mkdtemp } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { access, mkdtemp, rm } from "node:fs/promises";
+import { promisify } from "node:util";
 import openpod from "./index";
+
+const execFileAsync = promisify(execFile);
+
+async function exists(target: string): Promise<boolean> {
+  try {
+    await access(target);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // OpenCode SDK's close() shuts down its SQLite database before all pending
 // fs callbacks drain from the event loop, causing an unhandled rejection
@@ -23,7 +34,7 @@ describe("opencode", () => {
 
   async function cleanup(sessionId: string, dirs: string[]) {
     try {
-      execSync(`limactl delete --force ${sessionId}`, { stdio: "ignore" });
+      await execFileAsync("limactl", ["delete", "--force", sessionId]);
     } catch {
       // ignore
     }
@@ -34,7 +45,7 @@ describe("opencode", () => {
     }
     for (const d of dirs) {
       try {
-        fs.rmSync(d, { recursive: true, force: true });
+        await rm(d, { recursive: true, force: true });
       } catch {
         // ignore
       }
@@ -93,10 +104,10 @@ describe("opencode", () => {
       text: "hello",
     });
 
-    expect(fs.existsSync(path.join(openpodRoot, session.id))).toBe(false);
+    expect(await exists(path.join(openpodRoot, session.id))).toBe(false);
 
     // Verify no lima instance was created for this session
-    const listOutput = execSync("limactl list", { encoding: "utf8" });
+    const { stdout: listOutput } = await execFileAsync("limactl", ["list"]);
     expect(listOutput).not.toContain(session.id);
 
     // Clean up
@@ -108,7 +119,7 @@ describe("opencode", () => {
     const tempDir = await mkdtemp(
       path.join(os.tmpdir(), "openpod-e2e-no-origin-"),
     );
-    execSync("git init", { cwd: tempDir, stdio: "ignore" });
+    await execFileAsync("git", ["init"], { cwd: tempDir });
 
     const session = await opencode.sessions.create();
 
@@ -126,10 +137,10 @@ describe("opencode", () => {
       text: "hello",
     });
 
-    expect(fs.existsSync(path.join(openpodRoot, session.id))).toBe(false);
+    expect(await exists(path.join(openpodRoot, session.id))).toBe(false);
 
     // Verify no lima instance was created for this session
-    const listOutput = execSync("limactl list", { encoding: "utf8" });
+    const { stdout: listOutput } = await execFileAsync("limactl", ["list"]);
     expect(listOutput).not.toContain(session.id);
 
     // Clean up
@@ -147,11 +158,10 @@ describe("opencode", () => {
       const bareDir = await mkdtemp(
         path.join(os.tmpdir(), "openpod-bare-happy-path-"),
       );
-      execSync("git init --bare", { cwd: bareDir, stdio: "ignore" });
-      execSync("git init", { cwd: tempDir, stdio: "ignore" });
-      execSync(`git remote add origin ${bareDir}`, {
+      await execFileAsync("git", ["init", "--bare"], { cwd: bareDir });
+      await execFileAsync("git", ["init"], { cwd: tempDir });
+      await execFileAsync("git", ["remote", "add", "origin", bareDir], {
         cwd: tempDir,
-        stdio: "ignore",
       });
 
       const session = await opencode.sessions.create();
@@ -172,10 +182,10 @@ describe("opencode", () => {
 
       // Verify the openpod directory was created (cloned)
       const sessionDir = path.join(openpodRoot, session.id);
-      expect(fs.existsSync(sessionDir)).toBe(true);
+      expect(await exists(sessionDir)).toBe(true);
 
       // Verify a lima instance was created for this session
-      const listOutput = execSync("limactl list", { encoding: "utf8" });
+      const { stdout: listOutput } = await execFileAsync("limactl", ["list"]);
       expect(listOutput).toContain(session.id);
 
       // Clean up
@@ -194,27 +204,30 @@ describe("opencode", () => {
       const bareDir = await mkdtemp(
         path.join(os.tmpdir(), "openpod-bare-recreate-"),
       );
-      execSync("git init --bare", { cwd: bareDir, stdio: "ignore" });
-      execSync("git init", { cwd: tempDir, stdio: "ignore" });
-      execSync(`git remote add origin ${bareDir}`, {
+      await execFileAsync("git", ["init", "--bare"], { cwd: bareDir });
+      await execFileAsync("git", ["init"], { cwd: tempDir });
+      await execFileAsync("git", ["remote", "add", "origin", bareDir], {
         cwd: tempDir,
-        stdio: "ignore",
       });
 
-      function limaInstanceExists(name: string): boolean {
+      async function limaInstanceExists(name: string): Promise<boolean> {
         try {
-          execSync(`limactl list ${name}`, { stdio: "ignore" });
+          await execFileAsync("limactl", ["list", name]);
           return true;
         } catch {
           return false;
         }
       }
 
-      function limaInstanceStatus(name: string): string {
+      async function limaInstanceStatus(name: string): Promise<string> {
         try {
-          return execSync(`limactl list ${name} --format '{{.Status}}'`, {
-            encoding: "utf8",
-          }).trim();
+          const { stdout } = await execFileAsync("limactl", [
+            "list",
+            name,
+            "--format",
+            "{{.Status}}",
+          ]);
+          return stdout.trim();
         } catch {
           return "";
         }
@@ -225,7 +238,7 @@ describe("opencode", () => {
       async function waitForRunningLima(name: string): Promise<string> {
         let status = "";
         for (let i = 0; i < 120; i++) {
-          status = limaInstanceStatus(name);
+          status = await limaInstanceStatus(name);
           if (status === "Running") break;
           await new Promise((r) => setTimeout(r, 250));
         }
@@ -251,8 +264,8 @@ describe("opencode", () => {
       });
 
       // Verify the pod exists
-      expect(fs.existsSync(sessionDir)).toBe(true);
-      expect(limaInstanceExists(session.id)).toBe(true);
+      expect(await exists(sessionDir)).toBe(true);
+      expect(await limaInstanceExists(session.id)).toBe(true);
       expect(await waitForRunningLima(session.id)).toBe("Running");
 
       // Wait for the prompt hook's async session.move() to land the session
@@ -265,8 +278,8 @@ describe("opencode", () => {
 
       // Delete the lima instance out from under the session, leaving the
       // cloned pod directory in place.
-      execSync(`limactl delete --force ${session.id}`, { stdio: "ignore" });
-      expect(limaInstanceExists(session.id)).toBe(false);
+      await execFileAsync("limactl", ["delete", "--force", session.id]);
+      expect(await limaInstanceExists(session.id)).toBe(false);
 
       // Re-prompt: the existing pod directory is reused and the lima
       // instance is recreated.
@@ -276,8 +289,8 @@ describe("opencode", () => {
       });
 
       // Verify the pod was restored
-      expect(fs.existsSync(sessionDir)).toBe(true);
-      expect(limaInstanceExists(session.id)).toBe(true);
+      expect(await exists(sessionDir)).toBe(true);
+      expect(await limaInstanceExists(session.id)).toBe(true);
       expect(await waitForRunningLima(session.id)).toBe("Running");
 
       // Clean up
@@ -296,16 +309,15 @@ describe("opencode", () => {
       const bareDir = await mkdtemp(
         path.join(os.tmpdir(), "openpod-bare-delete-"),
       );
-      execSync("git init --bare", { cwd: bareDir, stdio: "ignore" });
-      execSync("git init", { cwd: tempDir, stdio: "ignore" });
-      execSync(`git remote add origin ${bareDir}`, {
+      await execFileAsync("git", ["init", "--bare"], { cwd: bareDir });
+      await execFileAsync("git", ["init"], { cwd: tempDir });
+      await execFileAsync("git", ["remote", "add", "origin", bareDir], {
         cwd: tempDir,
-        stdio: "ignore",
       });
 
-      function limaInstanceExists(name: string): boolean {
+      async function limaInstanceExists(name: string): Promise<boolean> {
         try {
-          execSync(`limactl list ${name}`, { stdio: "ignore" });
+          await execFileAsync("limactl", ["list", name]);
           return true;
         } catch {
           return false;
@@ -329,8 +341,8 @@ describe("opencode", () => {
         text: "hello",
       });
 
-      expect(fs.existsSync(sessionDir)).toBe(true);
-      expect(limaInstanceExists(session.id)).toBe(true);
+      expect(await exists(sessionDir)).toBe(true);
+      expect(await limaInstanceExists(session.id)).toBe(true);
 
       // Wait for the prompt hook's async session.move() to land the session
       // in the openpod directory before deleting it.
@@ -349,17 +361,19 @@ describe("opencode", () => {
         limaRemoved: boolean;
         dirRemoved: boolean;
       }> {
-        async function waitFor(condition: () => boolean): Promise<boolean> {
+        async function waitFor(
+          condition: () => boolean | Promise<boolean>,
+        ): Promise<boolean> {
           for (let i = 0; i < 100; i++) {
-            if (condition()) return true;
+            if (await condition()) return true;
             await new Promise((r) => setTimeout(r, 100));
           }
           return condition();
         }
 
         const [limaRemoved, dirRemoved] = await Promise.all([
-          waitFor(() => !limaInstanceExists(session.id)),
-          waitFor(() => !fs.existsSync(sessionDir)),
+          waitFor(async () => !(await limaInstanceExists(session.id))),
+          waitFor(async () => !(await exists(sessionDir))),
         ]);
         return { limaRemoved, dirRemoved };
       }
@@ -384,16 +398,15 @@ describe("opencode", () => {
       const bareDir = await mkdtemp(
         path.join(os.tmpdir(), "openpod-bare-clear-"),
       );
-      execSync("git init --bare", { cwd: bareDir, stdio: "ignore" });
-      execSync("git init", { cwd: tempDir, stdio: "ignore" });
-      execSync(`git remote add origin ${bareDir}`, {
+      await execFileAsync("git", ["init", "--bare"], { cwd: bareDir });
+      await execFileAsync("git", ["init"], { cwd: tempDir });
+      await execFileAsync("git", ["remote", "add", "origin", bareDir], {
         cwd: tempDir,
-        stdio: "ignore",
       });
 
-      function limaInstanceExists(name: string): boolean {
+      async function limaInstanceExists(name: string): Promise<boolean> {
         try {
-          execSync(`limactl list ${name}`, { stdio: "ignore" });
+          await execFileAsync("limactl", ["list", name]);
           return true;
         } catch {
           return false;
@@ -426,8 +439,8 @@ describe("opencode", () => {
         text: "hello",
       });
 
-      expect(fs.existsSync(sessionDir)).toBe(true);
-      expect(limaInstanceExists(session.id)).toBe(true);
+      expect(await exists(sessionDir)).toBe(true);
+      expect(await limaInstanceExists(session.id)).toBe(true);
 
       // Wait for the prompt hook's async session.move() to land the session
       // in the openpod directory before clearing it.
@@ -463,8 +476,8 @@ describe("opencode", () => {
         }
 
         const [limaRemoved, dirRemoved, sessionRemoved] = await Promise.all([
-          waitFor(() => !limaInstanceExists(session.id)),
-          waitFor(() => !fs.existsSync(sessionDir)),
+          waitFor(async () => !(await limaInstanceExists(session.id))),
+          waitFor(async () => !(await exists(sessionDir))),
           waitFor(async () => !(await sessionExists(session.id))),
         ]);
         return { limaRemoved, dirRemoved, sessionRemoved };
@@ -491,11 +504,10 @@ describe("opencode", () => {
       const bareDir = await mkdtemp(
         path.join(os.tmpdir(), "openpod-bare-shell-"),
       );
-      execSync("git init --bare", { cwd: bareDir, stdio: "ignore" });
-      execSync("git init", { cwd: tempDir, stdio: "ignore" });
-      execSync(`git remote add origin ${bareDir}`, {
+      await execFileAsync("git", ["init", "--bare"], { cwd: bareDir });
+      await execFileAsync("git", ["init"], { cwd: tempDir });
+      await execFileAsync("git", ["remote", "add", "origin", bareDir], {
         cwd: tempDir,
-        stdio: "ignore",
       });
 
       const session = await opencode.sessions.create();
@@ -515,7 +527,7 @@ describe("opencode", () => {
       });
 
       const sessionDir = path.join(openpodRoot, session.id);
-      expect(fs.existsSync(sessionDir)).toBe(true);
+      expect(await exists(sessionDir)).toBe(true);
 
       // Wait for the prompt hook's async session.move() to land the session
       // in the openpod directory. The create.before hook only wraps the
