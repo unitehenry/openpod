@@ -8,19 +8,24 @@ export type Logger = {
 export function initLogger(openpodRoot: string): Logger {
   const logDir = path.join(openpodRoot, ".log");
   const logFile = path.join(logDir, "openpod.log");
+  let queue = Promise.resolve();
 
-  async function log(message: string, level: string = "info"): Promise<void> {
-    try {
-      await mkdir(logDir, { recursive: true });
-      const timestamp = new Date().toISOString();
-      const levelPart = level === "info" ? "" : `[${level}] `;
-      await appendFile(
-        logFile,
-        `[${timestamp}] [openpod] ${levelPart}${message}\n`,
-      );
-    } catch {
-      // ignore logging failures
-    }
+  function log(message: string, level: string = "info"): Promise<void> {
+    const timestamp = new Date().toISOString();
+    const levelPart = level === "info" ? "" : `[${level}] `;
+    const entry = `[${timestamp}] [openpod] ${levelPart}${message}\n`;
+
+    // Writes are queued to keep log order, but callers do not need to wait.
+    queue = queue
+      .then(async () => {
+        await mkdir(logDir, { recursive: true });
+        await appendFile(logFile, entry);
+      })
+      .catch(() => {
+        // ignore logging failures
+      });
+
+    return queue;
   }
 
   return { log };
