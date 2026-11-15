@@ -6,21 +6,17 @@
   Give each opencode session an dedicated virtual machine
 </p>
 
-# TODO
+## Install
 
-- end-to-end tests (using github action runner)
-- make fs and exec operations async
-- `await opencode?.[Symbol.asyncDispose]?.();`
-- installation instructions (readme)
-- check if ubuntu and no limactl, then auto install
+```sh
+opencode plugin add github:unitehenry/openpod
+```
 
-## End-To-End Tests
+**Prerequisite**
 
-- [x] Opencode plugin is registered correctly after limactl is installed
-- [x] Prompt in non-git directory logs "git is not enabled" and returns early
-- [x] Prompt with no origin remote logs "no origin remote configured" and returns early
-- [x] Opencode shell command runs in lima instance (using opencode shell api)
-- [x] Opencode `clear-openpod` command is registered
-- [x] Create session -> prompt -> verify pod -> delete lima instance -> re-prompt -> verify pod
-- [x] Opencode delete session removes lima instance and openpod directory
-- [x] Opencode `clear-openpod` removes directories, lima instances, and deletes openpod sessions
+- [`opencode`](https://opencode.ai)
+- [`limactl`](https://lima-vm.io)
+
+## Usage
+
+Anytime you prompt an opencode session, if the project is `git` enabled and has an `origin` remote, this plugin will start a dedicated virtual machine to isolate the work of the agent.
