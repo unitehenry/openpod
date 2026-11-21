@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  Give each opencode session an dedicated virtual machine
+  Give each opencode session a dedicated virtual machine
 </p>
 
 ## Install
@@ -28,3 +28,16 @@ curl -fsSL https://raw.githubusercontent.com/unitehenry/openpod/master/install/u
 ## Usage
 
 Anytime you prompt an opencode session, if the project is `git` enabled and has an `origin` remote, this plugin will start a dedicated virtual machine to isolate the work of the agent.
+
+## Benefits
+
+- **One machine per session** — every OpenCode session gets its own VM and its own clone, not a shared shell.
+- **Run the stack N-up** — each pod has its own localhost, so five sessions can all use `:3000` and `:5432` at once.
+- **Parallel workstreams without worktrees** — no git worktree add, no branch locks, no shared index; each session has its own `.git`.
+- **No shared environment** — separate toolchains, packages, databases, Docker daemons, caches, and env vars.
+- **Clean slate every task** — fresh clone and fresh guest; no leftover `node_modules` or machine drift.
+- **Safe to break** — agents can sudo, rm -rf, and install anything; delete the session and the VM is gone.
+- **Small blast radius** — only the session's pod clone is mounted; your home, dotfiles, and other projects aren't.
+- **Mixed environments** — per-session OS, runtime, and database versions without Nix/Compose gymnastics.
+- **Transparent to the agent** — shell commands are wrapped in limactl shell; no new tools or workflow.
+- **CI-like reproducibility** — reproduce failures in a clean Linux guest and reset by deleting the session.
