@@ -36,7 +36,7 @@ Anytime you prompt an opencode session, if the project is `git` enabled and has 
 - **Parallel workstreams without worktrees** — no git worktree add, no branch locks, no shared index; each session has its own `.git`.
 - **No shared environment** — separate toolchains, packages, databases, Docker daemons, caches, and env vars.
 - **Clean slate every task** — fresh clone and fresh guest; no leftover `node_modules` or machine drift.
-- **Safe to break** — agents can sudo, rm -rf, and install anything; delete the session and the VM is gone.
+- **Safe to break** — agents can `sudo`, `rm -rf`, and install anything; delete the session and the VM is gone.
 - **Small blast radius** — only the session's pod clone is mounted; your home, dotfiles, and other projects aren't.
 - **Mixed environments** — per-session OS, runtime, and database versions without Nix/Compose gymnastics.
 - **Transparent to the agent** — shell commands are wrapped in limactl shell; no new tools or workflow.
