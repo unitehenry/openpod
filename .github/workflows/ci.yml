@@ -125,6 +125,5 @@ jobs:
         with:
           persist-credentials: false
 
-      # The local command uses -it, but GitHub Actions has no TTY, so use -i.
       - name: Test Ubuntu install script
         run: docker run --rm -i -v "$PWD/install/ubuntu.sh:/tmp/ubuntu.sh:ro" ubuntu:24.04 bash /tmp/ubuntu.sh
