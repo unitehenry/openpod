@@ -114,3 +114,17 @@ jobs:
 
       - name: E2E Test
         run: ./scripts/test opencode
+
+  install:
+    name: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # The local command uses -it, but GitHub Actions has no TTY, so use -i.
+      - name: Test Ubuntu install script
+        run: docker run --rm -i -v "$PWD/install/ubuntu.sh:/tmp/ubuntu.sh:ro" ubuntu:24.04 bash /tmp/ubuntu.sh
