@@ -10,15 +10,8 @@ log() { printf '\n==> %s\n' "$*"; }
 warn() { printf '\nwarning: %s\n' "$*" >&2; }
 die() { printf '\nerror: %s\n' "$*" >&2; exit 1; }
 
-# Re-run with sudo when invoked as a normal user from a script file.
 if [[ "${EUID}" -ne 0 ]]; then
-  command -v sudo >/dev/null 2>&1 || die "run this script as root"
-
-  script_path="${BASH_SOURCE[0]:-}"
-  [[ -n "${script_path}" && -f "${script_path}" ]] ||
-    die "run this script as root: sudo bash install/ubuntu.sh"
-
-  exec sudo -- bash "$(readlink -f "${script_path}")" "$@"
+  die "run this script as root (for example: sudo bash install/ubuntu.sh)"
 fi
 
 OPENPOD_HOME=""
